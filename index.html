@@ -7,71 +7,16 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #0a0a0a; --card-red: #ff4d4d; --card-white: #e0e0e0; --accent-color: #8b0000; --text-color: #e0e0e0; }
-        body { background-color: var(--bg); color: var(--text-color); font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; padding: 10px; box-sizing: border-box; }
-        #game-container { width: 95%; max-width: 600px; text-align: center; border: 2px solid #333; padding: 20px; border-radius: 10px; background: #111; box-shadow: 0 0 15px rgba(255, 0, 0, 0.5); box-sizing: border-box; }
-        .log { height: 150px; overflow-y: auto; background: #000; padding: 10px; text-align: left; font-size: 0.9rem; border: 1px dashed #555; margin: 15px 0; border-radius: 5px; }
-        .log p { margin: 5px 0; }
-        .hidden { display: none !important; } /* !important eklenerek diğer stilleri ezer */
-        input { padding: 10px; background: #222; border: 1px solid #444; color: white; margin-bottom: 10px; width: calc(100% - 22px); border-radius: 5px; }
-        button { padding: 10px 20px; background: var(--accent-color); color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; transition: background-color 0.2s ease; }
-        button:hover { background-color: #a00000; }
-        button:active { background-color: #600000; }
+        :root { --bg: #0a0a0a; --card-red: #ff4d4d; --card-white: #e0e0e0; }
+        body { background-color: var(--bg); color: white; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        #game-container { width: 90%; max-width: 600px; text-align: center; border: 2px solid #333; padding: 20px; border-radius: 10px; background: #111; box-shadow: 0 0 15px rgba(255, 0, 0, 0.5); }
+        .log { height: 150px; overflow-y: auto; background: #000; padding: 10px; text-align: left; font-size: 0.9rem; border: 1px dashed #555; margin: 15px 0; }
+        .hidden { display: none; }
+        input { padding: 10px; background: #222; border: 1px solid #444; color: white; margin-bottom: 10px; width: 80%; }
+        button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; }
         .player-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 15px 0; }
-        .player-node { border: 2px solid cyan; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 1.2rem; font-weight: bold; background-color: rgba(0,255,255,0.1); transition: transform 0.2s ease, background-color 0.2s ease; }
-        .player-node:hover { transform: scale(1.1); background-color: rgba(0,255,255,0.3); }
-        .symbols-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; }
-        .symbols-grid button { font-size: 2rem; padding: 15px; }
-        @media (min-width: 480px) {
-            .symbols-grid { grid-template-columns: repeat(4, 1fr); }
-        }
-
-        /* Custom Modal Styling */
-        #custom-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.8);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 10px;
-            box-sizing: border-box;
-        }
-        .modal-content {
-            background: #1a1a1a;
-            padding: 30px 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 25px rgba(255, 0, 0, 0.7);
-            max-width: 90%;
-            width: 350px;
-            text-align: center;
-            box-sizing: border-box;
-            border: 2px solid var(--accent-color);
-        }
-        #modal-message {
-            font-size: 1.2rem;
-            margin-bottom: 25px;
-            color: var(--text-color);
-            line-height: 1.5;
-        }
-        #modal-buttons button {
-            width: 100%;
-            padding: 12px;
-            font-size: 1rem;
-        }
-        .modal-icon {
-            font-size: 2.5rem;
-            margin-bottom: 15px;
-            display: block;
-        }
-        .modal-icon.success { color: #4CAF50; } /* Yeşil */
-        .modal-icon.error { color: #f44336; }    /* Kırmızı */
-        .modal-icon.info { color: #2196F3; }     /* Mavi */
-
+        .player-node { border: 2px solid cyan; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .symbols-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -96,22 +41,11 @@
                     <p>Ensendeki sembolü tahmin et:</p>
                     <div class="symbols-grid">
                         <button onclick="makeGuess('♠')">♠</button>
-                        <button style="color:var(--card-red);" onclick="makeGuess('♥')">♥</button>
-                        <button style="color:var(--card-red);" onclick="makeGuess('♦')">♦</button>
+                        <button style="color:red" onclick="makeGuess('♥')">♥</button>
+                        <button style="color:red" onclick="makeGuess('♦')">♦</button>
                         <button onclick="makeGuess('♣')">♣</button>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Custom Modal Structure -->
-    <div id="custom-modal" class="hidden">
-        <div class="modal-content">
-            <span id="modal-icon" class="modal-icon"></span>
-            <p id="modal-message"></p>
-            <div id="modal-buttons">
-                <button id="modal-ok-btn">Tamam</button>
             </div>
         </div>
     </div>
@@ -134,52 +68,9 @@
         let myId = "";
         let myName = "";
 
-        // Custom Modal Elements
-        const customModal = document.getElementById('custom-modal');
-        const modalMessage = document.getElementById('modal-message');
-        const modalOkBtn = document.getElementById('modal-ok-btn');
-        const modalIcon = document.getElementById('modal-icon');
-
-        /**
-         * Shows a custom modal with a message, optional icon, and a callback function.
-         * @param {string} message - The message to display.
-         * @param {string} [iconType='info'] - 'success', 'error', 'info'. Determines icon and color.
-         * @param {function} [callback] - Function to execute when "Tamam" button is clicked.
-         */
-        function showCustomModal(message, iconType = 'info', callback = null) {
-            modalMessage.innerText = message;
-            modalIcon.className = 'modal-icon'; // Reset classes
-            
-            // Set icon based on type
-            if (iconType === 'success') {
-                modalIcon.innerText = '✔';
-                modalIcon.classList.add('success');
-            } else if (iconType === 'error') {
-                modalIcon.innerText = '❌';
-                modalIcon.classList.add('error');
-            } else { // 'info' or default
-                modalIcon.innerText = 'ℹ️';
-                modalIcon.classList.add('info');
-            }
-            
-            customModal.classList.remove('hidden');
-
-            const handleOkClick = () => {
-                customModal.classList.add('hidden');
-                modalOkBtn.removeEventListener('click', handleOkClick); // Clean up listener
-                if (callback) {
-                    callback();
-                }
-            };
-            modalOkBtn.addEventListener('click', handleOkClick);
-        }
-
         function joinGame() {
             myName = document.getElementById('username').value;
-            if(!myName) {
-                showCustomModal("Lütfen adını yazarak oyuna katıl!", "error");
-                return;
-            }
+            if(!myName) return alert("İsim yaz!");
             
             const newPlayerRef = db.ref('players').push();
             myId = newPlayerRef.key;
@@ -191,12 +82,11 @@
                 status: "alive"
             });
 
-            newPlayerRef.onDisconnect().remove(); // Oyuncu bağlantısı kesilince otomatik sil
-
+            newPlayerRef.onDisconnect().remove();
+            
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
             listenPlayers();
-            updateLog(`"${myName}" adıyla oyuna katıldın.`);
         }
 
         function listenPlayers() {
@@ -205,43 +95,19 @@
                 const listDiv = document.getElementById('player-list');
                 listDiv.innerHTML = '';
                 
-                let allReady = true;
-                let playerCount = 0;
-
                 for(let id in players) {
-                    playerCount++;
                     const p = players[id];
-                    if (!p.ready) {
-                        allReady = false;
-                    }
-
                     const div = document.createElement('div');
                     div.className = 'player-node';
                     div.innerText = p.name[0].toUpperCase();
-                    div.title = p.name + (p.ready ? " (Hazır)" : " (Hazır Değil)");
+                    div.title = p.name;
                     
-                    if (id === myId) {
-                        div.style.borderColor = 'lime'; // Kendi avatarını farklı renklendir
-                    } else {
-                        // Başkasına tıklayınca sembolünü gör (Fısıldama)
-                        div.onclick = () => showCustomModal(`${p.name} kişisinin ensesinde ${p.symbol} var! (Doğru mu söylüyor?)`, "info");
+                    // Başkasına tıklayınca sembolünü gör (Fısıldama)
+                    if(id !== myId) {
+                        div.onclick = () => alert(`${p.name} kişisinin ensesinde ${p.symbol} var! (Doğru mu söylüyor?)`);
                     }
                     
                     listDiv.appendChild(div);
-                }
-
-                document.getElementById('status').innerText = `Lobi: ${playerCount} oyuncu var. ${allReady && playerCount > 1 ? 'Herkes hazır! Tur başlıyor...' : 'Diğer oyuncular bekleniyor...'}`;
-                
-                // Oyun başlangıç mantığı (Örnek: 2+ oyuncu ve herkes hazırsa)
-                if (allReady && playerCount >= 2 && myId) {
-                    // Bu kısım oyun turu başlatma ve sembol atama gibi merkezi bir mantık gerektirir.
-                    // Şu anki kodda sembol atama setReady() içinde olduğu için, bu kısım sadece bilgilendirme amaçlı.
-                    // Gerçek bir tur başlatma ve sembol dağıtma, sadece oyun yöneticisi (veya ilk katılan) tarafından yapılmalı.
-                    // Şimdilik sadece bilgilendirici bir log mesajı gösterelim.
-                    // if (myId === Object.keys(players)[0]) { // İlk katılan oyuncu ise (örnek yönetici)
-                    //     // Turu başlatma, sembolleri sıfırlayıp yeniden dağıtma mantığı buraya gelir.
-                    // }
-                    updateLog("Tüm oyuncular hazır. Oyun turu başlıyor!");
                 }
             });
         }
@@ -251,32 +117,22 @@
             const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
             db.ref('players/' + myId).update({
                 ready: true,
-                symbol: randomSymbol // Kendi sembolünü ata
+                symbol: randomSymbol
             });
             document.getElementById('ready-btn').classList.add('hidden');
             document.getElementById('guess-zone').classList.remove('hidden');
-            updateLog("Hazırsın! Kendi sembolün belirlendi. Diğer oyuncuların ensesindeki sembolleri öğrenmek için onlara tıkla ve kendi sembolünü tahmin et.");
+            updateLog("Hazırsın! Diğer oyuncuların ensesindeki sembolleri öğrenmek için onlara tıkla.");
         }
 
         function makeGuess(guess) {
             db.ref('players/' + myId).once('value').then(snap => {
-                if(!snap.exists()) {
-                    showCustomModal("Oyun durumu bulunamadı. Lütfen tekrar katılın.", "error", () => location.reload());
-                    return;
-                }
-                const myPlayerData = snap.val();
-                if(myPlayerData.symbol === guess) {
-                    showCustomModal("DOĞRU! Hayatta kaldın. ✔", "success", () => {
-                        updateLog("Doğru tahmin! Bir sonraki turu bekle.");
-                        // Doğru tahmin eden oyuncunun status'unu güncelleyebiliriz (örneğin 'survived' veya 'waiting')
-                        // db.ref('players/' + myId).update({ status: "survived" }); 
-                        // Şu anki mantıkta sadece log mesajı ve bekleyiş var.
-                    });
+                if(snap.val().symbol === guess) {
+                    alert("DOĞRU! Hayatta kaldın.");
+                    updateLog("Doğru tahmin! Bir sonraki turu bekle.");
                 } else {
-                    showCustomModal("YANLIŞ! Elendin. ❌", "error", () => {
-                        db.ref('players/' + myId).remove(); // Kendini oyundan sil
-                        location.reload(); // Sayfayı yenile
-                    });
+                    alert("YANLIŞ! Elendin.");
+                    db.ref('players/' + myId).remove();
+                    location.reload();
                 }
             });
         }
