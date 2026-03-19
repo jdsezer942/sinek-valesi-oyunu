@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sinek Valesi: Hücre Hapsi</title>
+    <style>
+        :root {
+            --bg: #0a0a0a;
+            --card-red: #ff4d4d;
+            --card-white: #e0e0e0; /* Varsayılan siyah sembol rengi */
+            --border-glow: 0 0 15px rgba(255, 0, 0, 0.5);
+            --char-bg-default: #111;
+            --char-border-default: #444;
+            --char-hover-border: cyan;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: white;
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            touch-action: none; /* Mobil cihazlarda varsayılan kaydırmayı engeller */
+        }
+
+        #game-container {
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+            border: 2px solid #333;
+            padding: 20px;
+            border-radius: 10px;
+            background: linear-gradient(145deg, #1a1a1a, #000);
+            box-shadow: var(--border-glow);
+            z-index: 10; /* Diğer öğelerin üzerinde olmasını sağlar */
+            position: relative; /* Çocuk öğeler için konumlandırma */
+        }
+
+        .status-panel {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+
+        #instruction {
+            margin-bottom: 15px;
+            font-style: italic;
+            color: #ccc;
+        }
+
+        .symbols-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 20px 0;
+        }
+
+        .symbol-btn {
+            padding: 15px;
+            font-size: 2rem;
+            cursor: pointer;
+            border: 1px solid #444;
+            background: #222;
+            color: var(--card-white); /* Varsayılan siyah semboller için */
+            border-radius: 5px;
+            transition: 0.3s;
+            display: flex; /* Sembolü ortalamak için */
+            align-items: center;
+            justify-content: center;
+        }
+
+        .symbol-btn:hover {
+            background: #444;
+            transform: scale(1.05);
+        }
+
+        .symbol-btn.red-suit { /* Kupa (♥) ve Karo (♦) için */
+            color: var(--card-red);
+        }
+
+        .log {
+            height: 150px;
+            overflow-y: auto;
+            background: #000;
+            padding: 10px;
+            text-align: left;
+            font-size: 0.9rem;
+            border: 1px dashed #555;
+            margin-bottom: 15px;
+            max-width: calc(100% - 20px); /* Padding için ayarla */
+            white-space: pre-wrap; /* Satır sonlarını korur */
+            word-wrap: break-word; /* Uzun kelimeleri böler */
+        }
+
+        .log p {
+            margin: 0;
+            padding: 2px 0;
+        }
+
+        .character-list {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 20px;
+            padding: 10px 0;
+            background: #000;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+
+        .char-node {
+            cursor: pointer;
+            padding: 10px;
+            border: 2px solid var(--char-border-default); /* Varsayılan border kalınlığı artırıldı */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--char-bg-default);
+            font-size: 1.5rem;
+            font-weight: bold;
+            transition: 0.3s;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+            color: white; /* Karakter isim baş harfleri beyaz olsun */
+        }
+
+        .char-node:hover {
+            border-color: var(--char-hover-border);
+            transform: scale(1.1);
+            box-shadow: 0 0 10px var(--char-hover-border);
+        }
+        .char-node.active { /* Karakter sorulduğunda görsel geri bildirim */
+            border-color: #00ffff; /* Parlak camgöbeği */
+            box-shadow: 0 0 15px #00ffff;
+            animation: pulse-border 1s infinite alternate;
+        }
+
+        @keyframes pulse-border {
+            from { box-shadow: 0 0 5px #00ffff; }
+            to { box-shadow: 0 0 15px #00ffff; }
+        }
+
+        .hidden { display: none; }
+        
+        #timer { color: #00ff00; font-weight: bold; }
+
+        #enter-cell-btn {
+            background-color: #8b0000; /* Aciliyet için koyu kırmızı */
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.2rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.1s;
+            box-shadow: 0 0 10px rgba(255,0,0,0.7);
+            font-weight: bold;
+        }
+
+        #enter-cell-btn:hover {
+            background-color: #a30000;
+            transform: scale(1.05);
+        }
+        #enter-cell-btn:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div class="status-panel">
+            <div>TUR: <span id="round-num">1</span></div>
+            <div>SÜRE: <span id="timer">60</span>s</div>
+        </div>
+
+        <div id="instruction"></div>
+
+        <div class="character-list" id="characters-container">
+        </div>
+
+        <div class="log" id="game-log">
+            <!-- Log mesajları buraya eklenecek -->
+        </div>
+
+        <div id="decision-zone" class="hidden">
+            <h3>Hücrene Gir ve Tahmin Et:</h3>
+            <div class="symbols-grid">
+                <!-- Sembol butonları JS tarafından oluşturulacak veya güncellenecek -->
+                <button class="symbol-btn" data-symbol="♠">♠</button>
+                <button class="symbol-btn" data-symbol="♥">♥</button>
+                <button class="symbol-btn" data-symbol="♦">♦</button>
+                <button class="symbol-btn" data-symbol="♣">♣</button>
+            </div>
+        </div>
+        
+        <button id="enter-cell-btn" onclick="openHatch()">HÜCREYE GİR</button>
+    </div>
+
+    <script>
+        // Semboller ve kart türü bilgileri
+        const symbols = ['♠', '♥', '♦', '♣'];
+        const suitsData = {
+            '♠': { name: 'Maça', colorClass: '' },         // Siyah sembol (varsayılan)
+            '♥': { name: 'Kupa', colorClass: 'red-suit' }, // Kırmızı sembol
+            '♦': { name: 'Karo', colorClass: 'red-suit' }, // Kırmızı sembol
+            '♣': { name: 'Sinek', colorClass: '' }         // Siyah sembol (varsayılan)
+        };
+
+        // Karakter verileri (güvenilirlik ve ipucu rengi)
+        const charactersData = [
+            { id: 1, name: "Chishiya", trust: 0.9, hintColor: "#00ffff" }, // %90 doğru söyleme şansı (camgöbeği)
+            { id: 2, name: "Bandō", trust: 0.4, hintColor: "#ff4d4d" },   // %40 doğru söyleme şansı (kırmızı)
+            { id: 3, name: "Yaba", trust: 0.5, hintColor: "#87ceeb" },   // %50 doğru söyleme şansı (gökyüzü mavisi)
+            { id: 4, name: "Kotoko", trust: 0.7, hintColor: "#ff69b4" }  // %70 doğru söyleme şansı (sıcak pembe)
+        ];
+
+        // Oyun durumu değişkenleri
+        let playerSymbol = ""; // Oyuncunun ensesindeki gizli sembol
+        let currentRound = 0;  // Mevcut tur numarası
+        let timeLeft = 0;      // Kalan süre
+        let timerInterval;     // setInterval ID'si için
+
+        // UI elementlerine referanslar
+        const roundNumSpan = document.getElementById('round-num');
+        const timerSpan = document.getElementById('timer');
+        const instructionDiv = document.getElementById('instruction');
+        const charactersContainer = document.getElementById('characters-container');
+        const gameLogDiv = document.getElementById('game-log');
+        const decisionZoneDiv = document.getElementById('decision-zone');
+        const enterCellBtn = document.getElementById('enter-cell-btn');
+        const symbolButtons = document.querySelectorAll('.symbol-btn'); // Tahmin butonları
+
+        // Oyunu başlatan fonksiyon
+        function initGame() {
+            currentRound = 0; // Oyunu sıfırdan başlat
+            updateLog(`> Oyun başladı. Sinek Valesi aramızda...`);
+            initRound();
+        }
+
+        // Yeni bir tur başlatan fonksiyon
+        function initRound() {
+            currentRound++;
+            playerSymbol = symbols[Math.floor(Math.random() * symbols.length)]; // Yeni gizli sembol ata
+            timeLeft = 60; // Her tur 60 saniye başlar
+            
+            roundNumSpan.innerText = currentRound;
+            timerSpan.innerText = timeLeft;
+            instructionDiv.innerText = "Ensendeki sembolü öğrenmek için bir oyuncuya tıkla. Dikkatli ol, yalan söylüyor olabilirler!";
+
+            decisionZoneDiv.classList.add('hidden'); // Tahmin alanını gizle
+            enterCellBtn.classList.remove('hidden'); // "Hücreye Gir" butonunu göster
+
+            charactersContainer.innerHTML = ''; // Önceki karakterleri temizle
+            charactersData.forEach(char => {
+                const div = document.createElement('div');
+                div.className = 'char-node';
+                div.innerText = char.name[0]; // Karakterin adının ilk harfi
+                div.title = char.name;       // Hover metni
+                div.style.borderColor = char.hintColor; // Karakterin rengini border olarak kullan
+                div.onclick = () => askCharacter(char, div); // Tıklama olayını bağla, div'i de geçir
+                charactersContainer.appendChild(div);
+            });
+
+            // Tahmin butonlarını ayarla ve tıklama olaylarını bağla
+            symbolButtons.forEach(button => {
+                button.onclick = () => makeGuess(button.dataset.symbol); // dataset.symbol ile sembolü al
+                button.classList.remove('red-suit'); // Önceki turdan kalan kırmızı rengi sıfırla
+                // Sembolün rengine göre sınıf ekle
+                if (suitsData[button.dataset.symbol].colorClass) {
+                    button.classList.add(suitsData[button.dataset.symbol].colorClass);
+                }
+            });
+
+            updateLog(`--- Tur ${currentRound} Başladı ---`);
+            startTimer();
+        }
+
+        // Zamanlayıcıyı başlatan fonksiyon
+        function startTimer() {
+            clearInterval(timerInterval); // Varsa önceki zamanlayıcıyı temizle
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                timerSpan.innerText = timeLeft;
+
+                // Son 10 saniyede zamanlayıcı rengini kırmızı yap
+                if (timeLeft <= 10) { 
+                    timerSpan.style.color = '#ff4d4d'; // Kırmızı
+                } else {
+                    timerSpan.style.color = '#00ff00'; // Yeşil
+                }
+
+                if (timeLeft <= 0) {
+                    gameOver("Süre bitti! Hücreye yetişemedin ve tasma patladı.");
+                }
+            }, 1000); // Her saniye güncelle
+        }
+
+        // Karakterlere soru sorma fonksiyonu
+        function askCharacter(char, charDiv) {
+            // Diğer tüm karakterlerden aktif sınıfını kaldır
+            document.querySelectorAll('.char-node').forEach(node => node.classList.remove('active'));
+            charDiv.classList.add('active'); // Tıklanan karaktere aktif sınıfını ekle
+
+            const isLying = Math.random() > char.trust; // Güven oranına göre yalan söyleme şansı
+            let answer;
+            let logMsgColor = char.hintColor; // Log mesajı için karakterin ipucu rengi
+
+            if (isLying) {
+                const wrongSymbols = symbols.filter(s => s !== playerSymbol);
+                answer = wrongSymbols[Math.floor(Math.random() * wrongSymbols.length)];
+                logMsgColor = "red"; // Yalan söylerse kırmızı log
+            } else {
+                answer = playerSymbol; // Doğru sembolü söyle
+            }
+            updateLog(`<p style="color:${logMsgColor};">${char.name} fısıldıyor: "Ensendeki işaret <span style="font-weight:bold; font-size:1.1em;">${answer}</span>"</p>`);
+        }
+
+        // "Hücreye Gir" butonuna basıldığında tahmin alanını gösteren fonksiyon
+        function openHatch() {
+            clearInterval(timerInterval); // Oyuncu hücreye girdiğinde zamanlayıcıyı durdur
+            decisionZoneDiv.classList.remove('hidden'); // Tahmin alanını göster
+            enterCellBtn.classList.add('hidden');       // "Hücreye Gir" butonunu gizle
+            instructionDiv.innerText = "Kararını ver ve sembolünü seç.";
+            updateLog(`Hücreye girdin. Kararını verme zamanı.`);
+            
+            // Hücreye girildiğinde tüm karakterlerden aktif sınıfını kaldır
+            document.querySelectorAll('.char-node').forEach(node => node.classList.remove('active'));
+        }
+
+        // Oyuncunun tahminini değerlendiren fonksiyon
+        function makeGuess(guess) {
+            clearInterval(timerInterval); // Zamanlayıcının durduğundan emin ol
+            if (guess === playerSymbol) {
+                alert("DOĞRU! Yaşamaya devam ediyorsun.");
+                updateLog(`<p style="color:#00ff00;">DOĞRU! Tahminin <span style="font-weight:bold;">${guess}</span> idi. Ensendeki sembol buydu.</p>`);
+                initRound(); // Doğru tahminse yeni turu başlat
+            } else {
+                gameOver(`YANLIŞ! Tahminin <span style="font-weight:bold;">${guess}</span> idi ama ensendeki sembol <span style="font-weight:bold;">${playerSymbol}</span> idi. Oyun Bitti.`);
+            }
+        }
+
+        // Oyun günlüğüne mesaj ekleyen fonksiyon
+        function updateLog(msg) {
+            const p = document.createElement('p');
+            p.innerHTML = msg;
+            gameLogDiv.appendChild(p);
+            gameLogDiv.scrollTop = gameLogDiv.scrollHeight; // Otomatik olarak en alta kaydır
+        }
+
+        // Oyun bittiğinde çağrılan fonksiyon
+        function gameOver(msg) {
+            clearInterval(timerInterval); // Zamanlayıcının durduğundan emin ol
+            alert(msg);
+            location.reload(); // Sayfayı yeniden yükleyerek oyunu tekrar başlat
+        }
+
+        // Sayfa yüklendiğinde oyunu başlat
+        initGame();
+    </script>
+</body>
+</html>
