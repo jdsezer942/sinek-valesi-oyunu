@@ -13,9 +13,11 @@
         .log { height: 150px; overflow-y: auto; background: #000; padding: 10px; text-align: left; font-size: 0.9rem; border: 1px dashed #555; margin: 15px 0; }
         .hidden { display: none; }
         input { padding: 10px; background: #222; border: 1px solid #444; color: white; margin-bottom: 10px; width: 80%; }
-        button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; margin: 5px; }
+        button:disabled { background: #444; cursor: not-allowed; }
         .player-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 15px 0; }
-        .player-node { border: 2px solid cyan; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .player-node { border: 2px solid red; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; }
+        .player-node.ready { border-color: #00ff00; box-shadow: 0 0 10px #00ff00; }
         .symbols-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
     </style>
 </head>
@@ -38,7 +40,7 @@
                 <button id="ready-btn" onclick="setReady()">HAZIRIM</button>
                 
                 <div id="guess-zone" class="hidden">
-                    <p>Ensendeki sembolü tahmin et:</p>
+                    <p style="color: cyan; font-weight: bold;">OYUN BAŞLADI! Ensendeki sembolü tahmin et:</p>
                     <div class="symbols-grid">
                         <button onclick="makeGuess('♠')">♠</button>
                         <button style="color:red" onclick="makeGuess('♥')">♥</button>
@@ -51,7 +53,6 @@
     </div>
 
     <script>
-        // SENİN FİREBASE BİLGİLERİN
         const firebaseConfig = {
             apiKey: "AIzaSyDFfKM09beGbtknlKBlwTYr6V21S_rwZ7c",
             authDomain: "sinek-valesi-online.firebaseapp.com",
@@ -67,6 +68,7 @@
         
         let myId = "";
         let myName = "";
+        let gameStarted = false;
 
         function joinGame() {
             myName = document.getElementById('username').value;
@@ -95,40 +97,64 @@
                 const listDiv = document.getElementById('player-list');
                 listDiv.innerHTML = '';
                 
+                let totalCount = 0;
+                let readyCount = 0;
+
                 for(let id in players) {
                     const p = players[id];
+                    totalCount++;
+                    if(p.ready) readyCount++;
+
                     const div = document.createElement('div');
-                    div.className = 'player-node';
+                    div.className = `player-node ${p.ready ? 'ready' : ''}`;
                     div.innerText = p.name[0].toUpperCase();
-                    div.title = p.name;
+                    div.title = p.name + (p.ready ? " (Hazır)" : " (Hazırlanıyor)");
                     
-                    // Başkasına tıklayınca sembolünü gör (Fısıldama)
-                    if(id !== myId) {
-                        div.onclick = () => alert(`${p.name} kişisinin ensesinde ${p.symbol} var! (Doğru mu söylüyor?)`);
+                    // Başkasına tıklayınca fısıldama (Sadece oyun başladıysa)
+                    if(id !== myId && p.symbol && gameStarted) {
+                        div.onclick = () => alert(`${p.name} kişisinin ensesinde ${p.symbol} var!`);
                     }
-                    
                     listDiv.appendChild(div);
+                }
+
+                // DURUM GÜNCELLEME
+                if (!gameStarted) {
+                    document.getElementById('status').innerText = `Lobi: ${readyCount}/${totalCount} Oyuncu Hazır`;
+                    
+                    // KRİTİK: Eğer en az 2 kişi varsa ve herkes hazırsa OYUNU BAŞLAT
+                    if (totalCount >= 2 && readyCount === totalCount) {
+                        startGame();
+                    }
                 }
             });
         }
 
         function setReady() {
+            db.ref('players/' + myId).update({ ready: true });
+            document.getElementById('ready-btn').disabled = true;
+            document.getElementById('ready-btn').innerText = "Bekleniyor...";
+            updateLog("Hazır olduğun bildirildi. Diğerleri bekleniyor...");
+        }
+
+        function startGame() {
+            gameStarted = true;
             const symbols = ['♠', '♥', '♦', '♣'];
             const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
-            db.ref('players/' + myId).update({
-                ready: true,
-                symbol: randomSymbol
-            });
+            
+            // Kendi sembolünü ata (Sadece sende görünecek şekilde DB'ye yaz)
+            db.ref('players/' + myId).update({ symbol: randomSymbol });
+
+            document.getElementById('status').innerText = "OYUN BAŞLADI!";
             document.getElementById('ready-btn').classList.add('hidden');
             document.getElementById('guess-zone').classList.remove('hidden');
-            updateLog("Hazırsın! Diğer oyuncuların ensesindeki sembolleri öğrenmek için onlara tıkla.");
+            updateLog("Herkes hazır! Diğer oyuncuların ensesindekileri öğrenmek için onlara tıkla.");
         }
 
         function makeGuess(guess) {
             db.ref('players/' + myId).once('value').then(snap => {
                 if(snap.val().symbol === guess) {
                     alert("DOĞRU! Hayatta kaldın.");
-                    updateLog("Doğru tahmin! Bir sonraki turu bekle.");
+                    updateLog("Doğru tahmin! Şimdilik güvendesin.");
                 } else {
                     alert("YANLIŞ! Elendin.");
                     db.ref('players/' + myId).remove();
