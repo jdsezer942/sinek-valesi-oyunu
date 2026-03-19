@@ -3,318 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sinek Valesi: Online Hücre Hapsi</title>
+    <title>Sinek Valesi: Online</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        :root {
-            --bg: #0a0a0a;
-            --card-red: #ff4d4d;
-            --card-white: #e0e0e0;
-            --border-glow: 0 0 15px rgba(255, 0, 0, 0.5);
-            --char-bg-default: #111;
-            --char-border-default: #444;
-            --char-hover-border: cyan;
-        }
-
-        body {
-            background-color: var(--bg);
-            color: white;
-            font-family: 'Courier New', Courier, monospace;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            overflow-x: hidden;
-        }
-
-        /* Lobi Ekranı */
-        #login-screen {
-            text-align: center;
-            padding: 30px;
-            background: #111;
-            border: 2px solid #333;
-            border-radius: 10px;
-            box-shadow: var(--border-glow);
-        }
-
-        #username-input {
-            padding: 10px;
-            font-size: 1.1rem;
-            background: #222;
-            border: 1px solid #444;
-            color: white;
-            margin-bottom: 20px;
-            width: 80%;
-        }
-
-        #join-btn {
-            padding: 10px 20px;
-            background: #8b0000;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-        }
-
-        /* Oyun Alanı */
-        #game-container {
-            width: 90%;
-            max-width: 600px;
-            text-align: center;
-            border: 2px solid #333;
-            padding: 20px;
-            border-radius: 10px;
-            background: linear-gradient(145deg, #1a1a1a, #000);
-            box-shadow: var(--border-glow);
-            position: relative;
-        }
-
-        .status-panel {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 20px;
-            font-size: 1.2rem;
-            border-bottom: 1px solid #444;
-            padding-bottom: 10px;
-        }
-
-        .character-list {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            padding: 15px;
-            background: #000;
-            border-radius: 8px;
-        }
-
-        .char-node {
-            cursor: pointer;
-            padding: 10px;
-            border: 2px solid var(--char-border-default);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--char-bg-default);
-            font-size: 1rem;
-            transition: 0.3s;
-        }
-
-        .char-node:hover { border-color: cyan; transform: scale(1.1); }
-        .char-node.me { border-color: #ffd700; box-shadow: 0 0 10px #ffd700; }
-
-        .log {
-            height: 150px;
-            overflow-y: auto;
-            background: #000;
-            padding: 10px;
-            text-align: left;
-            font-size: 0.85rem;
-            border: 1px dashed #555;
-            margin-bottom: 15px;
-        }
-
-        .symbols-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin: 20px 0;
-        }
-
-        .symbol-btn {
-            padding: 15px;
-            font-size: 1.5rem;
-            cursor: pointer;
-            border: 1px solid #444;
-            background: #222;
-            color: white;
-            border-radius: 5px;
-        }
-
-        .red-suit { color: var(--card-red); }
+        :root { --bg: #0a0a0a; --card-red: #ff4d4d; --card-white: #e0e0e0; }
+        body { background-color: var(--bg); color: white; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        #game-container { width: 90%; max-width: 600px; text-align: center; border: 2px solid #333; padding: 20px; border-radius: 10px; background: #111; box-shadow: 0 0 15px rgba(255, 0, 0, 0.5); }
+        .log { height: 150px; overflow-y: auto; background: #000; padding: 10px; text-align: left; font-size: 0.9rem; border: 1px dashed #555; margin: 15px 0; }
         .hidden { display: none; }
-        #enter-cell-btn {
-            background-color: #8b0000;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            cursor: pointer;
-            border-radius: 8px;
-        }
+        input { padding: 10px; background: #222; border: 1px solid #444; color: white; margin-bottom: 10px; width: 80%; }
+        button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; }
+        .player-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 15px 0; }
+        .player-node { border: 2px solid cyan; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+        .symbols-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
     </style>
 </head>
 <body>
 
-    <div id="login-screen">
-        <h2>Sinek Valesi: Online</h2>
-        <p>Hücre hapsinden kurtulmak için bir isim seç.</p>
-        <input type="text" id="username-input" placeholder="Kullanıcı adın..." maxlength="10">
-        <br>
-        <button id="join-btn">OYUNA KATIL</button>
-    </div>
-
-    <div id="game-container" class="hidden">
-        <div class="status-panel">
-            <div>TUR: <span id="round-num">1</span></div>
-            <div><span id="my-name-display"></span></div>
-        </div>
-
-        <div id="instruction">Diğer oyunculara tıklayarak fısıldaş...</div>
-
-        <div class="character-list" id="players-container">
-            </div>
-
-        <div class="log" id="game-log"></div>
-
-        <div id="decision-zone" class="hidden">
-            <h3>Hücrene Gir ve Sembolünü Seç:</h3>
-            <div class="symbols-grid">
-                <button class="symbol-btn" data-symbol="♠">♠</button>
-                <button class="symbol-btn" data-symbol="♥">♥</button>
-                <button class="symbol-btn" data-symbol="♦">♦</button>
-                <button class="symbol-btn" data-symbol="♣">♣</button>
-            </div>
-        </div>
+    <div id="game-container">
+        <h2>SİNEK VALESİ: ONLINE</h2>
         
-        <button id="enter-cell-btn">HÜCREYE GİR</button>
+        <div id="login-screen">
+            <input type="text" id="username" placeholder="Adını yaz...">
+            <button onclick="joinGame()">OYUNA KATIL</button>
+        </div>
+
+        <div id="game-screen" class="hidden">
+            <div id="status">Lobi: Diğer oyuncular bekleniyor...</div>
+            <div class="player-list" id="player-list"></div>
+            <div class="log" id="game-log"></div>
+            
+            <div id="action-zone">
+                <button id="ready-btn" onclick="setReady()">HAZIRIM</button>
+                
+                <div id="guess-zone" class="hidden">
+                    <p>Ensendeki sembolü tahmin et:</p>
+                    <div class="symbols-grid">
+                        <button onclick="makeGuess('♠')">♠</button>
+                        <button style="color:red" onclick="makeGuess('♥')">♥</button>
+                        <button style="color:red" onclick="makeGuess('♦')">♦</button>
+                        <button onclick="makeGuess('♣')">♣</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, onValue, onDisconnect, update, push, onChildAdded } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-        // Paylaştığın Config Bilgileri
+    <script>
+        // SENİN FİREBASE BİLGİLERİN
         const firebaseConfig = {
-            apiKey: "AIzaSyDfFkM09beGbtknlKBlwTYr6V21S_rwZ7c",
+            apiKey: "AIzaSyDFfKM09beGbtknlKBlwTYr6V21S_rwZ7c",
             authDomain: "sinek-valesi-online.firebaseapp.com",
             projectId: "sinek-valesi-online",
-            storageBucket: "sinek-valesi-online.firebasestorage.app",
+            databaseURL: "https://sinek-valesi-online-default-rtdb.europe-west1.firebasedatabase.app",
+            storageBucket: "sinek-valesi-online.appspot.com",
             messagingSenderId: "361261148085",
-            appId: "1:361261148085:web:817677efcf47aa0d551bfc",
-            measurementId: "G-J3WBK4MTDV",
-            databaseURL: "https://sinek-valesi-online-default-rtdb.europe-west1.firebasedatabase.app" // Otomatik ekledim
+            appId: "1:361261148085:web:817677efcf47aa0d551bfc"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        
+        let myId = "";
         let myName = "";
-        let mySymbol = "";
-        const symbols = ['♠', '♥', '♦', '♣'];
 
-        // Giriş Butonu
-        document.getElementById('join-btn').onclick = () => {
-            const input = document.getElementById('username-input').value.trim();
-            if(!input) return alert("İsim girmelisin!");
-            myName = input;
-            startOnlineGame();
-        };
-
-        function startOnlineGame() {
-            document.getElementById('login-screen').classList.add('hidden');
-            document.getElementById('game-container').classList.remove('hidden');
-            document.getElementById('my-name-display').innerText = myName;
-
-            mySymbol = symbols[Math.floor(Math.random() * symbols.length)];
+        function joinGame() {
+            myName = document.getElementById('username').value;
+            if(!myName) return alert("İsim yaz!");
             
-            const myRef = ref(db, 'players/' + myName);
-            set(myRef, {
+            const newPlayerRef = db.ref('players').push();
+            myId = newPlayerRef.key;
+            
+            newPlayerRef.set({
                 name: myName,
-                symbol: mySymbol,
-                lastActive: Date.now()
+                ready: false,
+                symbol: "",
+                status: "alive"
             });
 
-            // Bağlantı kesilince sil
-            onDisconnect(myRef).remove();
-
-            updateLog(`> Hoş geldin ${myName}. Ensendeki işaret belirlendi.`);
+            newPlayerRef.onDisconnect().remove();
+            
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
             listenPlayers();
-            listenMessages();
         }
 
-        // Oyuncuları Listele
         function listenPlayers() {
-            onValue(ref(db, 'players'), (snapshot) => {
+            db.ref('players').on('value', (snapshot) => {
                 const players = snapshot.val();
-                const container = document.getElementById('players-container');
-                container.innerHTML = '';
+                const listDiv = document.getElementById('player-list');
+                listDiv.innerHTML = '';
                 
                 for(let id in players) {
                     const p = players[id];
                     const div = document.createElement('div');
-                    div.className = `char-node ${p.name === myName ? 'me' : ''}`;
+                    div.className = 'player-node';
                     div.innerText = p.name[0].toUpperCase();
                     div.title = p.name;
-                    if(p.name !== myName) {
-                        div.onclick = () => sendWhisper(p.name);
+                    
+                    // Başkasına tıklayınca sembolünü gör (Fısıldama)
+                    if(id !== myId) {
+                        div.onclick = () => alert(`${p.name} kişisinin ensesinde ${p.symbol} var! (Doğru mu söylüyor?)`);
                     }
-                    container.appendChild(div);
+                    
+                    listDiv.appendChild(div);
                 }
             });
         }
 
-        // Fısıltı Gönder
-        function sendWhisper(targetName) {
-            const msgRef = ref(db, 'messages/' + targetName);
-            push(msgRef, {
-                from: myName,
-                type: 'ask'
+        function setReady() {
+            const symbols = ['♠', '♥', '♦', '♣'];
+            const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+            db.ref('players/' + myId).update({
+                ready: true,
+                symbol: randomSymbol
             });
-            updateLog(`> ${targetName} adlı oyuncuya fısıldadın...`);
+            document.getElementById('ready-btn').classList.add('hidden');
+            document.getElementById('guess-zone').classList.remove('hidden');
+            updateLog("Hazırsın! Diğer oyuncuların ensesindeki sembolleri öğrenmek için onlara tıkla.");
         }
 
-        // Mesajları Dinle
-        function listenMessages() {
-            const myMsgRef = ref(db, 'messages/' + myName);
-            onChildAdded(myMsgRef, (snapshot) => {
-                const msg = snapshot.val();
-                if(msg.type === 'ask') {
-                    const answer = confirm(`${msg.from} fısıldıyor: "Ensendeki işaret nedir?" \n\nGerçeği söylemek istiyor musun? (İptal dersen yalan söyler)`);
-                    const responseSymbol = answer ? mySymbol : symbols.filter(s => s !== mySymbol)[Math.floor(Math.random()*3)];
-                    
-                    push(ref(db, 'messages/' + msg.from), {
-                        from: myName,
-                        type: 'answer',
-                        text: responseSymbol
-                    });
-                } else if(msg.type === 'answer') {
-                    updateLog(`<span style="color:cyan;">${msg.from} fısıldıyor: "Ensendeki işaret ${msg.text}"</span>`);
+        function makeGuess(guess) {
+            db.ref('players/' + myId).once('value').then(snap => {
+                if(snap.val().symbol === guess) {
+                    alert("DOĞRU! Hayatta kaldın.");
+                    updateLog("Doğru tahmin! Bir sonraki turu bekle.");
+                } else {
+                    alert("YANLIŞ! Elendin.");
+                    db.ref('players/' + myId).remove();
+                    location.reload();
                 }
             });
         }
 
         function updateLog(msg) {
             const log = document.getElementById('game-log');
-            const p = document.createElement('p');
-            p.innerHTML = msg;
-            log.appendChild(p);
+            log.innerHTML += `<p>> ${msg}</p>`;
             log.scrollTop = log.scrollHeight;
         }
-
-        // Hücreye Giriş ve Tahmin Mantığı
-        document.getElementById('enter-cell-btn').onclick = () => {
-            document.getElementById('decision-zone').classList.remove('hidden');
-            document.getElementById('enter-cell-btn').classList.add('hidden');
-        };
-
-        document.querySelectorAll('.symbol-btn').forEach(btn => {
-            btn.onclick = () => {
-                const guess = btn.dataset.symbol;
-                if(guess === mySymbol) {
-                    alert("DOĞRU! Yaşamaya devam ediyorsun.");
-                    location.reload();
-                } else {
-                    alert("YANLIŞ! Ensendeki sembol " + mySymbol + " idi. Oyun Bitti.");
-                    location.reload();
-                }
-            };
-        });
     </script>
 </body>
 </html>
