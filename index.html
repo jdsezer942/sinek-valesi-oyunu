@@ -7,50 +7,39 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #0a0a0a; --card-red: #ff4d4d; --card-white: #e0e0e0; --neon: #ff0000; }
-        body { background-color: var(--bg); color: white; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        #game-container { width: 90%; max-width: 600px; text-align: center; border: 2px solid #333; padding: 20px; border-radius: 10px; background: #111; box-shadow: 0 0 15px rgba(255, 0, 0, 0.3); }
-        .log { height: 120px; overflow-y: auto; background: #000; padding: 10px; text-align: left; font-size: 0.8rem; border: 1px dashed #555; margin: 10px 0; color: #00ff00; }
+        :root { --bg: #0a0a0a; --card-red: #ff4d4d; --neon: #ff0000; }
+        body { background-color: var(--bg); color: white; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; overflow: hidden; }
+        
+        #game-container { width: 90%; max-width: 600px; text-align: center; border: 2px solid #333; padding: 20px; border-radius: 10px; background: #111; box-shadow: 0 0 15px rgba(255, 0, 0, 0.3); z-index: 10; }
+        .log { height: 100px; overflow-y: auto; background: #000; padding: 10px; text-align: left; font-size: 0.8rem; border: 1px dashed #555; margin: 10px 0; color: #00ff00; }
         .hidden { display: none !important; }
-        input { padding: 12px; background: #222; border: 1px solid #444; color: white; margin-bottom: 10px; width: 80%; border-radius: 5px; }
-        button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; margin: 5px; border-radius: 5px; transition: 0.2s; }
-        button:hover { background: #b30000; box-shadow: 0 0 10px var(--neon); }
-        button:disabled { background: #444; cursor: not-allowed; }
-        .player-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin: 15px 0; }
-        .player-node { border: 2px solid #555; border-radius: 50%; width: 75px; height: 75px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; background: #1a1a1a; position: relative; }
+        
+        input { padding: 12px; background: #222; border: 1px solid #444; color: white; width: 80%; margin-bottom: 10px; border-radius: 5px; text-align: center; }
+        button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 5px; transition: 0.3s; }
+        button:hover { background: #ff0000; box-shadow: 0 0 10px var(--neon); }
+
+        .player-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin: 20px 0; }
+        .player-node { border: 2px solid #444; border-radius: 50%; width: 70px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a1a; cursor: pointer; }
         .player-node.ready { border-color: #00ff00; box-shadow: 0 0 15px #00ff00; }
-        .player-node span { font-size: 1.8rem; font-weight: bold; }
-        .player-node small { font-size: 0.7rem; color: #aaa; margin-top: 2px; }
-        .symbols-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
 
-        /* Bildirim Paneli (Mavi Tema) */
-        #interaction-panel { background: #000; border: 2px solid cyan; padding: 20px; border-radius: 10px; margin-top: 15px; position: fixed; top: 20px; width: 320px; z-index: 90; box-shadow: 0 0 25px cyan; text-align: center; }
-
-        /* ÖZEL UYARI MODALI (Neon Kırmızı) */
+        /* MODAL - TAM MERKEZ VE GÖRÜNÜR */
         #custom-alert-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.9);
+            background: rgba(0, 0, 0, 0.95);
             display: flex; align-items: center; justify-content: center;
             z-index: 9999;
         }
         #custom-alert-box {
-            background: #111;
-            border: 3px solid var(--neon);
-            padding: 30px;
-            border-radius: 15px;
-            width: 300px;
-            text-align: center;
-            box-shadow: 0 0 30px rgba(255, 0, 0, 0.6);
-            animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            background: #111; border: 2px solid var(--neon);
+            padding: 30px; border-radius: 15px; width: 280px;
+            text-align: center; box-shadow: 0 0 30px rgba(255, 0, 0, 0.5);
         }
-        #custom-alert-title { color: var(--neon); margin: 0 0 15px 0; font-size: 1.4rem; letter-spacing: 2px; }
-        #custom-alert-message { color: #eee; margin-bottom: 25px; font-size: 1rem; line-height: 1.5; }
-        .modal-btn { background: var(--neon); padding: 12px 30px; border-radius: 8px; font-size: 1rem; border: none; color: white; cursor: pointer; font-weight: bold; width: 100%; }
+        #custom-alert-title { color: var(--neon); margin-top: 0; font-size: 1.5rem; }
+        #custom-alert-message { color: #fff; margin: 15px 0 25px 0; font-size: 1rem; line-height: 1.4; }
 
-        @keyframes modalPop {
-            from { opacity: 0; transform: scale(0.5); }
-            to { opacity: 1; transform: scale(1); }
-        }
+        /* Etkileşim Paneli */
+        #interaction-panel { position: fixed; top: 20px; background: #000; border: 2px solid cyan; padding: 15px; border-radius: 10px; z-index: 1000; box-shadow: 0 0 20px cyan; }
+        .symbols-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
     </style>
 </head>
 <body>
@@ -59,20 +48,18 @@
         <h2>SİNEK VALESİ: ONLINE</h2>
         
         <div id="login-screen">
-            <input type="text" id="username" placeholder="Adını yaz...">
-            <br>
-            <button onclick="joinGame()">OYUNA KATIL</button>
+            <input type="text" id="username" placeholder="İsmini Gir...">
+            <button onclick="joinGame()">BAŞLA</button>
         </div>
 
         <div id="game-screen" class="hidden">
-            <div id="status" style="color: cyan; margin-bottom: 10px;">Lobi: Bekleniyor...</div>
-            <div class="player-list" id="player-list"></div>
-            <div class="log" id="game-log"></div>
-            
+            <div id="status" style="color: cyan;">Lobi bekleniyor...</div>
+            <div id="player-list" class="player-list"></div>
+            <div id="game-log" class="log"></div>
             <div id="action-zone">
                 <button id="ready-btn" onclick="setReady()">HAZIRIM</button>
                 <div id="guess-zone" class="hidden">
-                    <p style="color: cyan; font-weight: bold; font-size: 0.9rem;">Ensendeki sembolü tahmin et:</p>
+                    <p>Ensendeki sembolü tahmin et:</p>
                     <div class="symbols-grid">
                         <button onclick="makeGuess('♠')">♠</button>
                         <button style="color:red" onclick="makeGuess('♥')">♥</button>
@@ -85,7 +72,7 @@
     </div>
 
     <div id="interaction-panel" class="hidden">
-        <p id="question-text" style="color: cyan;"></p>
+        <p id="question-text"></p>
         <div class="symbols-grid">
             <button onclick="answerQuestion('♠')">♠</button>
             <button style="color:red" onclick="answerQuestion('♥')">♥</button>
@@ -96,14 +83,13 @@
 
     <div id="custom-alert-overlay" class="hidden">
         <div id="custom-alert-box">
-            <h3 id="custom-alert-title">DİKKAT</h3>
-            <p id="custom-alert-message">Mesaj burada görünecek.</p>
-            <button class="modal-btn" id="custom-alert-confirm-btn">TAMAM</button>
+            <h3 id="custom-alert-title">BİLGİ</h3>
+            <p id="custom-alert-message"></p>
+            <button onclick="closeAlert()" style="width:100%">TAMAM</button>
         </div>
     </div>
 
     <script>
-        // --- Firebase Ayarları ---
         const firebaseConfig = {
             apiKey: "AIzaSyDFfKM09beGbtknlKBlwTYr6V21S_rwZ7c",
             authDomain: "sinek-valesi-online.firebaseapp.com",
@@ -116,167 +102,108 @@
 
         firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
-        
-        let myId = "";
-        let myName = "";
-        let isGlobalStarted = false;
-        let currentRequestId = ""; 
-        const allSymbols = ['♠', '♥', '♦', '♣'];
+        let myId, myName, currentRequestId, onConfirm;
 
-        // --- MODAL KONTROLÜ ---
-        let onConfirm = null;
-
-        function showCustomAlert(title, message, callback = null) {
-            document.getElementById('custom-alert-title').innerText = title.toUpperCase();
-            document.getElementById('custom-alert-message').innerText = message;
+        // Modal Fonksiyonları
+        function showAlert(title, msg, callback = null) {
+            document.getElementById('custom-alert-title').innerText = title;
+            document.getElementById('custom-alert-message').innerText = msg;
             document.getElementById('custom-alert-overlay').classList.remove('hidden');
             onConfirm = callback;
         }
 
-        document.getElementById('custom-alert-confirm-btn').onclick = () => {
+        function closeAlert() {
             document.getElementById('custom-alert-overlay').classList.add('hidden');
-            if (onConfirm) { onConfirm(); onConfirm = null; }
-        };
+            if(onConfirm) { onConfirm(); onConfirm = null; }
+        }
 
-        // --- OYUN MANTIĞI ---
         function joinGame() {
             myName = document.getElementById('username').value.trim();
-            if(!myName) {
-                showCustomAlert("Hata", "Lütfen bir isim girin!");
-                return;
-            }
-            const newPlayerRef = db.ref('players').push();
-            myId = newPlayerRef.key;
-            newPlayerRef.set({ name: myName, ready: false, symbol: "", status: "alive" });
-            newPlayerRef.onDisconnect().remove();
+            if(!myName) return showAlert("HATA", "Bir isim yazmalısın!");
+
+            const ref = db.ref('players').push();
+            myId = ref.key;
+            ref.set({ name: myName, ready: false, symbol: "", status: "alive" });
+            ref.onDisconnect().remove();
 
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
-            listenGame();
-            listenInteractions();
+            startListening();
         }
 
-        function listenGame() {
+        function startListening() {
             db.ref('gameState').on('value', snap => {
-                isGlobalStarted = snap.val() || false;
-                const statusEl = document.getElementById('status');
-                if (isGlobalStarted) {
-                    statusEl.innerText = "● OYUN BAŞLADI!";
+                const started = snap.val();
+                document.getElementById('status').innerText = started ? "OYUN BAŞLADI!" : "Lobi bekleniyor...";
+                if(started) {
                     document.getElementById('ready-btn').classList.add('hidden');
                     document.getElementById('guess-zone').classList.remove('hidden');
-                    checkAndAssignMySymbol();
-                } else {
-                    statusEl.innerText = "Lobi: Hazırlanıyor...";
+                    assignSymbol();
                 }
             });
 
             db.ref('players').on('value', snap => {
                 const players = snap.val() || {};
-                const listDiv = document.getElementById('player-list');
-                listDiv.innerHTML = '';
-                
-                let pIds = Object.keys(players);
-                let readyCount = 0;
-                for(let id in players) if(players[id].ready) readyCount++;
+                const list = document.getElementById('player-list');
+                list.innerHTML = "";
+                let allReady = true;
+                let count = 0;
 
                 for(let id in players) {
-                    const p = players[id];
+                    count++;
+                    if(!players[id].ready) allReady = false;
                     const div = document.createElement('div');
-                    div.className = `player-node ${p.ready ? 'ready' : ''}`;
-                    
-                    if(isGlobalStarted) {
-                        div.innerHTML = `<span>${id !== myId ? (p.symbol || "⌛") : "?"}</span><small>${p.name}</small>`;
-                        if(id !== myId) div.onclick = () => askSymbol(id, p.name);
-                    } else {
-                        div.innerHTML = `<span>${p.name[0].toUpperCase()}</span><small>${p.name}</small>`;
-                    }
-                    listDiv.appendChild(div);
+                    div.className = `player-node ${players[id].ready ? 'ready' : ''}`;
+                    div.innerHTML = `<span>${id === myId ? '?' : (players[id].symbol || '⌛')}</span><small>${players[id].name}</small>`;
+                    if(id !== myId) div.onclick = () => ask(id, players[id].name);
+                    list.appendChild(div);
                 }
-
-                if (!isGlobalStarted && pIds.length >= 2 && readyCount === pIds.length && pIds[0] === myId) {
-                    db.ref('gameState').set(true);
-                }
+                if(count >= 2 && allReady) db.ref('gameState').set(true);
             });
-        }
 
-        function askSymbol(targetId, targetName) {
-            updateLog(`${targetName} kişisine soruluyor...`);
-            db.ref('interactions/' + targetId).set({
-                fromId: myId, fromName: myName, type: "question", timestamp: Date.now()
-            });
-        }
-
-        function listenInteractions() {
             db.ref('interactions/' + myId).on('value', snap => {
                 const data = snap.val();
-                if(!data) {
-                    document.getElementById('interaction-panel').classList.add('hidden');
-                    return;
-                }
-
+                if(!data) return document.getElementById('interaction-panel').classList.add('hidden');
                 if(data.type === "question") {
-                    document.getElementById('question-text').innerText = `${data.fromName} ensendeki sembolü soruyor!`;
+                    document.getElementById('question-text').innerText = `${data.fromName} soruyor!`;
                     document.getElementById('interaction-panel').classList.remove('hidden');
                     currentRequestId = data.fromId;
                 } else if(data.type === "answer") {
-                    showCustomAlert("CEVAP GELDİ", `${data.fromName} fısıldadı: "Ensendeki sembol ${data.choice}"`);
-                    updateLog(`${data.fromName}: ${data.choice}`);
+                    showAlert("CEVAP", `${data.fromName}: "Ensendeki ${data.choice}"`);
                     db.ref('interactions/' + myId).remove();
                 }
             });
         }
 
+        function ask(tid, tname) {
+            db.ref('interactions/' + tid).set({ fromId: myId, fromName: myName, type: "question" });
+            updateLog(`${tname} kişisine soruldu.`);
+        }
+
         function answerQuestion(choice) {
-            if(!currentRequestId) return;
-            db.ref('interactions/' + currentRequestId).set({
-                fromId: myId, fromName: myName, type: "answer", choice: choice, timestamp: Date.now()
-            });
+            db.ref('interactions/' + currentRequestId).set({ fromId: myId, fromName: myName, type: "answer", choice: choice });
             db.ref('interactions/' + myId).remove();
         }
 
-        function checkAndAssignMySymbol() {
-            db.ref('players/' + myId + '/symbol').once('value', snap => {
-                if(!snap.val()) {
-                    const randomSymbol = allSymbols[Math.floor(Math.random() * allSymbols.length)];
-                    db.ref('players/' + myId).update({ symbol: randomSymbol });
-                }
+        function assignSymbol() {
+            db.ref('players/' + myId + '/symbol').once('value', s => {
+                if(!s.val()) db.ref('players/' + myId).update({ symbol: ['♠','♥','♦','♣'][Math.floor(Math.random()*4)] });
             });
         }
 
-        function setReady() {
-            db.ref('players/' + myId).update({ ready: true });
-            const btn = document.getElementById('ready-btn');
-            btn.disabled = true;
-            btn.innerText = "BEKLENİYOR...";
-        }
+        function setReady() { db.ref('players/' + myId).update({ ready: true }); }
 
-        function makeGuess(guess) {
-            db.ref('players/' + myId + '/symbol').once('value', snap => {
-                const realSymbol = snap.val();
-                if(realSymbol === guess) {
-                    showCustomAlert("TEBRİKLER", "Doğru bildin ve hayatta kaldın!", () => {
-                        db.ref('gameState').set(false);
-                        db.ref('interactions').remove();
-                        db.ref('players').once('value', s => {
-                            for(let id in s.val()) db.ref('players/' + id).update({ ready: false, symbol: "" });
-                        });
-                    });
+        function makeGuess(g) {
+            db.ref('players/' + myId + '/symbol').once('value', s => {
+                if(s.val() === g) {
+                    showAlert("TEBRİKLER", "Bildin!", () => location.reload());
                 } else {
-                    showCustomAlert("ELENDİN", `Yanlış tahmin! Ensendeki: ${realSymbol}`, () => {
-                        db.ref('players/' + myId).remove();
-                        location.reload();
-                    });
+                    showAlert("ELENDİN", "Yanlış tahmin!", () => location.reload());
                 }
             });
         }
 
-        function updateLog(msg) {
-            const log = document.getElementById('game-log');
-            if(log) {
-                log.innerHTML += `<div>> ${msg}</div>`;
-                log.scrollTop = log.scrollHeight;
-            }
-        }
+        function updateLog(m) { document.getElementById('game-log').innerHTML += `<div>> ${m}</div>`; }
     </script>
 </body>
 </html>
