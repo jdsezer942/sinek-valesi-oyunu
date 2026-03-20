@@ -10,7 +10,7 @@
         :root { --bg: #0a0a0a; --card-red: #ff4d4d; --card-white: #e0e0e0; }
         body { background-color: var(--bg); color: white; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
         #game-container { width: 90%; max-width: 600px; text-align: center; border: 2px solid #333; padding: 20px; border-radius: 10px; background: #111; box-shadow: 0 0 15px rgba(255, 0, 0, 0.5); }
-        .log { height: 150px; overflow-y: auto; background: #000; padding: 10px; text-align: left; font-size: 0.9rem; border: 1px dashed #555; margin: 15px 0; }
+        .log { height: 120px; overflow-y: auto; background: #000; padding: 10px; text-align: left; font-size: 0.8rem; border: 1px dashed #555; margin: 10px 0; }
         .hidden { display: none; }
         input { padding: 10px; background: #222; border: 1px solid #444; color: white; margin-bottom: 10px; width: 80%; }
         button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; margin: 5px; }
@@ -21,6 +21,9 @@
         .player-node span { font-size: 1.8rem; font-weight: bold; }
         .player-node small { font-size: 0.7rem; margin-top: 2px; color: #aaa; overflow: hidden; text-overflow: ellipsis; width: 60px; }
         .symbols-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
+        
+        /* Yeni: Bildirim Paneli */
+        #interaction-panel { background: #1a1a1a; border: 2px solid cyan; padding: 15px; border-radius: 10px; margin-top: 15px; position: fixed; top: 20px; width: 300px; z-index: 100; box-shadow: 0 0 20px cyan; }
     </style>
 </head>
 <body>
@@ -40,7 +43,6 @@
             
             <div id="action-zone">
                 <button id="ready-btn" onclick="setReady()">HAZIRIM</button>
-                
                 <div id="guess-zone" class="hidden">
                     <p style="color: cyan; font-weight: bold;">Ensendeki sembolü tahmin et:</p>
                     <div class="symbols-grid">
@@ -51,6 +53,16 @@
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <div id="interaction-panel" class="hidden">
+        <p id="question-text"></p>
+        <div class="symbols-grid">
+            <button onclick="answerQuestion('♠')">♠</button>
+            <button style="color:red" onclick="answerQuestion('♥')">♥</button>
+            <button style="color:red" onclick="answerQuestion('♦')">♦</button>
+            <button onclick="answerQuestion('♣')">♣</button>
         </div>
     </div>
 
@@ -71,120 +83,120 @@
         let myId = "";
         let myName = "";
         let isGlobalStarted = false;
+        let currentRequestId = ""; 
         const allSymbols = ['♠', '♥', '♦', '♣'];
 
         function joinGame() {
             myName = document.getElementById('username').value;
             if(!myName) return alert("İsim yaz!");
-            
             const newPlayerRef = db.ref('players').push();
             myId = newPlayerRef.key;
-            
-            newPlayerRef.set({
-                name: myName,
-                ready: false,
-                symbol: "",
-                status: "alive"
-            });
-
+            newPlayerRef.set({ name: myName, ready: false, symbol: "", status: "alive" });
             newPlayerRef.onDisconnect().remove();
-            
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
             listenGame();
+            listenInteractions(); // Bildirimleri dinlemeye başla
         }
 
         function listenGame() {
-            // 1. Oyun Durumunu Dinle
             db.ref('gameState').on('value', (snap) => {
                 isGlobalStarted = snap.val() || false;
                 const statusEl = document.getElementById('status');
-                const readyBtn = document.getElementById('ready-btn');
-                const guessZone = document.getElementById('guess-zone');
-
                 if (isGlobalStarted) {
                     statusEl.innerText = "OYUN BAŞLADI!";
-                    readyBtn.classList.add('hidden');
-                    guessZone.classList.remove('hidden');
-                    // Oyun başladığında sembolüm yoksa hemen ata (Self-Healing)
+                    document.getElementById('ready-btn').classList.add('hidden');
+                    document.getElementById('guess-zone').classList.remove('hidden');
                     checkAndAssignMySymbol();
                 } else {
                     statusEl.innerText = "Lobi: Hazırlanıyor...";
-                    guessZone.classList.add('hidden');
-                    readyBtn.classList.remove('hidden');
+                    document.getElementById('guess-zone').classList.add('hidden');
+                    document.getElementById('ready-btn').classList.remove('hidden');
                 }
             });
 
-            // 2. Oyuncuları Dinle
             db.ref('players').on('value', (snapshot) => {
                 const players = snapshot.val() || {};
                 const listDiv = document.getElementById('player-list');
                 listDiv.innerHTML = '';
-                
                 let playerIds = Object.keys(players);
-                let totalCount = playerIds.length;
                 let readyCount = 0;
-
-                for(let id in players) {
-                    if(players[id].ready) readyCount++;
-                }
+                for(let id in players) if(players[id].ready) readyCount++;
 
                 for(let id in players) {
                     const p = players[id];
                     const div = document.createElement('div');
                     div.className = `player-node ${p.ready ? 'ready' : ''}`;
-                    
                     if(isGlobalStarted) {
-                        if(id !== myId) {
-                            // Başka bir oyuncu için sembolü göster
-                            const displaySymbol = p.symbol ? p.symbol : "⌛"; 
-                            div.innerHTML = `<span>${displaySymbol}</span><small>${p.name}</small>`;
-                            if(p.symbol) {
-                                div.onclick = () => whisperAction(p.name, p.symbol);
-                            }
-                        } else {
-                            // Kendim için soru işareti göster (Kendi sembolümü görmemem lazım)
-                            div.innerHTML = `<span>?</span><small>${p.name}</small>`;
-                        }
+                        div.innerHTML = `<span>${id !== myId ? (p.symbol || "⌛") : "?"}</span><small>${p.name}</small>`;
+                        if(id !== myId) div.onclick = () => askSymbol(id, p.name);
                     } else {
-                        // Lobi hali
                         div.innerHTML = `<span>${p.name[0].toUpperCase()}</span><small>${p.name}</small>`;
                     }
                     listDiv.appendChild(div);
                 }
 
-                // Otomatik Başlatma (Sadece ilk oyuncu/lider tetikler)
-                if (!isGlobalStarted && totalCount >= 2 && readyCount === totalCount && playerIds[0] === myId) {
+                if (!isGlobalStarted && playerIds.length >= 2 && readyCount === playerIds.length && playerIds[0] === myId) {
                     db.ref('gameState').set(true);
                 }
             });
         }
 
-        // Sembol Atama Garantisi
+        // 1. SORU SORMA: Rakibe tıklandığında çalışır
+        function askSymbol(targetId, targetName) {
+            updateLog(`${targetName} kişisine soruluyor...`);
+            db.ref('interactions/' + targetId).set({
+                fromId: myId,
+                fromName: myName,
+                type: "question",
+                timestamp: Date.now()
+            });
+        }
+
+        // 2. ETKİLEŞİMLERİ DİNLEME: Bana soru soruldu mu?
+        function listenInteractions() {
+            db.ref('interactions/' + myId).on('value', (snap) => {
+                const data = snap.val();
+                if(!data) {
+                    document.getElementById('interaction-panel').classList.add('hidden');
+                    return;
+                }
+
+                if(data.type === "question") {
+                    document.getElementById('question-text').innerText = `${data.fromName} sana ensende ne olduğunu soruyor!`;
+                    document.getElementById('interaction-panel').classList.remove('hidden');
+                    currentRequestId = data.fromId;
+                } else if(data.type === "answer") {
+                    // Sorduğum sorunun cevabı geldi
+                    alert(`${data.fromName} diyor ki: "Ensendeki sembol ${data.choice}"`);
+                    updateLog(`${data.fromName} cevapladı: ${data.choice}`);
+                    db.ref('interactions/' + myId).remove(); // Mesajı temizle
+                }
+            });
+        }
+
+        // 3. CEVAP VERME: Panelden bir sembol seçildiğinde
+        function answerQuestion(choice) {
+            if(!currentRequestId) return;
+            // Cevabı soruyu soran kişiye gönder
+            db.ref('interactions/' + currentRequestId).set({
+                fromId: myId,
+                fromName: myName,
+                type: "answer",
+                choice: choice,
+                timestamp: Date.now()
+            });
+            // Kendi panelimi kapat
+            db.ref('interactions/' + myId).remove();
+            document.getElementById('interaction-panel').classList.add('hidden');
+        }
+
         function checkAndAssignMySymbol() {
             db.ref('players/' + myId + '/symbol').once('value', snap => {
                 if(!snap.val()) {
                     const randomSymbol = allSymbols[Math.floor(Math.random() * allSymbols.length)];
                     db.ref('players/' + myId).update({ symbol: randomSymbol });
                 }
-            });
-        }
-
-        function whisperAction(targetName, targetSymbol) {
-            const isLying = Math.random() < 0.3;
-            // Kendi sembolümü Firebase'den anlık çekip fısılda
-            db.ref('players/' + myId + '/symbol').once('value', snap => {
-                const myRealSymbol = snap.val();
-                if(!myRealSymbol) return; // Henüz sembol atanmadıysa fısıldama
-
-                let spoken;
-                if(isLying) {
-                    spoken = allSymbols.filter(s => s !== myRealSymbol)[Math.floor(Math.random() * 3)];
-                } else {
-                    spoken = myRealSymbol;
-                }
-                alert(`${targetName} fısıldıyor: "Senin ensende ${spoken} var!"`);
-                updateLog(`${targetName} fısıldadı: "Ensendeki ${spoken}"`);
             });
         }
 
@@ -199,13 +211,10 @@
                 const realSymbol = snap.val();
                 if(realSymbol === guess) {
                     alert("TEBRİKLER! Bildin.");
-                    // Oyunu bitir ve lobiye dönmek için temizlik yap
                     db.ref('gameState').set(false);
+                    db.ref('interactions').remove(); // Tüm konuşmaları temizle
                     db.ref('players').once('value', s => {
-                        const all = s.val();
-                        for(let id in all) {
-                            db.ref('players/' + id).update({ ready: false, symbol: "" });
-                        }
+                        for(let id in s.val()) db.ref('players/' + id).update({ ready: false, symbol: "" });
                     });
                 } else {
                     alert(`ELENDİN! Ensendeki: ${realSymbol}`);
