@@ -7,74 +7,48 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        :root { --bg: #0a0a0a; --card-red: #ff4d4d; --card-white: #e0e0e0; }
+        :root { --bg: #0a0a0a; --card-red: #ff4d4d; --card-white: #e0e0e0; --neon: #ff0000; }
         body { background-color: var(--bg); color: white; font-family: 'Courier New', monospace; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        #game-container { width: 90%; max-width: 600px; text-align: center; border: 2px solid #333; padding: 20px; border-radius: 10px; background: #111; box-shadow: 0 0 15px rgba(255, 0, 0, 0.5); }
-        .log { height: 120px; overflow-y: auto; background: #000; padding: 10px; text-align: left; font-size: 0.8rem; border: 1px dashed #555; margin: 10px 0; }
-        .hidden { display: none; }
-        input { padding: 10px; background: #222; border: 1px solid #444; color: white; margin-bottom: 10px; width: 80%; }
-        button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; margin: 5px; border-radius: 5px; } /* Added border-radius */
+        #game-container { width: 90%; max-width: 600px; text-align: center; border: 2px solid #333; padding: 20px; border-radius: 10px; background: #111; box-shadow: 0 0 15px rgba(255, 0, 0, 0.3); }
+        .log { height: 120px; overflow-y: auto; background: #000; padding: 10px; text-align: left; font-size: 0.8rem; border: 1px dashed #555; margin: 10px 0; color: #00ff00; }
+        .hidden { display: none !important; }
+        input { padding: 12px; background: #222; border: 1px solid #444; color: white; margin-bottom: 10px; width: 80%; border-radius: 5px; }
+        button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; margin: 5px; border-radius: 5px; transition: 0.2s; }
+        button:hover { background: #b30000; box-shadow: 0 0 10px var(--neon); }
         button:disabled { background: #444; cursor: not-allowed; }
-        .player-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 15px 0; }
-        .player-node { border: 2px solid red; border-radius: 50%; width: 70px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; background: #1a1a1a; position: relative; }
-        .player-node.ready { border-color: #00ff00; box-shadow: 0 0 10px #00ff00; }
+        .player-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin: 15px 0; }
+        .player-node { border: 2px solid #555; border-radius: 50%; width: 75px; height: 75px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; background: #1a1a1a; position: relative; }
+        .player-node.ready { border-color: #00ff00; box-shadow: 0 0 15px #00ff00; }
         .player-node span { font-size: 1.8rem; font-weight: bold; }
-        .player-node small { font-size: 0.7rem; margin-top: 2px; color: #aaa; overflow: hidden; text-overflow: ellipsis; width: 60px; }
+        .player-node small { font-size: 0.7rem; color: #aaa; margin-top: 2px; }
         .symbols-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
-        
-        /* Bildirim Paneli */
-        #interaction-panel { background: #1a1a1a; border: 2px solid cyan; padding: 15px; border-radius: 10px; margin-top: 15px; position: fixed; top: 20px; width: 300px; z-index: 100; box-shadow: 0 0 20px cyan; }
 
-        /* Yeni: Özel Uyarı Modalı */
+        /* Bildirim Paneli (Mavi Tema) */
+        #interaction-panel { background: #000; border: 2px solid cyan; padding: 20px; border-radius: 10px; margin-top: 15px; position: fixed; top: 20px; width: 320px; z-index: 90; box-shadow: 0 0 25px cyan; text-align: center; }
+
+        /* ÖZEL UYARI MODALI (Neon Kırmızı) */
         #custom-alert-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000; /* Ensures it's above everything else */
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 9999;
         }
         #custom-alert-box {
-            background: #1a1a1a;
-            border: 2px solid var(--card-red);
-            padding: 20px;
-            border-radius: 10px;
-            max-width: 400px;
+            background: #111;
+            border: 3px solid var(--neon);
+            padding: 30px;
+            border-radius: 15px;
+            width: 300px;
             text-align: center;
-            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
-            animation: fadeIn 0.3s ease-out; /* Simple fade-in animation */
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.6);
+            animation: modalPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
-        #custom-alert-box h3 {
-            color: var(--card-red);
-            margin-top: 0;
-            font-size: 1.5rem;
-        }
-        #custom-alert-box p {
-            margin-bottom: 20px;
-            font-size: 1rem;
-            line-height: 1.4;
-        }
-        #custom-alert-confirm-btn {
-            background: #8b0000;
-            color: white;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            padding: 10px 25px;
-            border-radius: 5px;
-            transition: background 0.2s ease;
-        }
-        #custom-alert-confirm-btn:hover {
-            background: #b30000;
-        }
+        #custom-alert-title { color: var(--neon); margin: 0 0 15px 0; font-size: 1.4rem; letter-spacing: 2px; }
+        #custom-alert-message { color: #eee; margin-bottom: 25px; font-size: 1rem; line-height: 1.5; }
+        .modal-btn { background: var(--neon); padding: 12px 30px; border-radius: 8px; font-size: 1rem; border: none; color: white; cursor: pointer; font-weight: bold; width: 100%; }
 
-        /* Fade-in animation for modal */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.9); }
+        @keyframes modalPop {
+            from { opacity: 0; transform: scale(0.5); }
             to { opacity: 1; transform: scale(1); }
         }
     </style>
@@ -86,18 +60,19 @@
         
         <div id="login-screen">
             <input type="text" id="username" placeholder="Adını yaz...">
+            <br>
             <button onclick="joinGame()">OYUNA KATIL</button>
         </div>
 
         <div id="game-screen" class="hidden">
-            <div id="status">Lobi: Hazırlanıyor...</div>
+            <div id="status" style="color: cyan; margin-bottom: 10px;">Lobi: Bekleniyor...</div>
             <div class="player-list" id="player-list"></div>
             <div class="log" id="game-log"></div>
             
             <div id="action-zone">
                 <button id="ready-btn" onclick="setReady()">HAZIRIM</button>
                 <div id="guess-zone" class="hidden">
-                    <p style="color: cyan; font-weight: bold;">Ensendeki sembolü tahmin et:</p>
+                    <p style="color: cyan; font-weight: bold; font-size: 0.9rem;">Ensendeki sembolü tahmin et:</p>
                     <div class="symbols-grid">
                         <button onclick="makeGuess('♠')">♠</button>
                         <button style="color:red" onclick="makeGuess('♥')">♥</button>
@@ -110,7 +85,7 @@
     </div>
 
     <div id="interaction-panel" class="hidden">
-        <p id="question-text"></p>
+        <p id="question-text" style="color: cyan;"></p>
         <div class="symbols-grid">
             <button onclick="answerQuestion('♠')">♠</button>
             <button style="color:red" onclick="answerQuestion('♥')">♥</button>
@@ -119,16 +94,16 @@
         </div>
     </div>
 
-    <!-- Özel Uyarı Modalı -->
     <div id="custom-alert-overlay" class="hidden">
         <div id="custom-alert-box">
-            <h3 id="custom-alert-title"></h3>
-            <p id="custom-alert-message"></p>
-            <button id="custom-alert-confirm-btn">Tamam</button>
+            <h3 id="custom-alert-title">DİKKAT</h3>
+            <p id="custom-alert-message">Mesaj burada görünecek.</p>
+            <button class="modal-btn" id="custom-alert-confirm-btn">TAMAM</button>
         </div>
     </div>
 
     <script>
+        // --- Firebase Ayarları ---
         const firebaseConfig = {
             apiKey: "AIzaSyDFfKM09beGbtknlKBlwTYr6V21S_rwZ7c",
             authDomain: "sinek-valesi-online.firebaseapp.com",
@@ -148,68 +123,59 @@
         let currentRequestId = ""; 
         const allSymbols = ['♠', '♥', '♦', '♣'];
 
-        // --- Özel Uyarı Modalı Fonksiyonları ---
-        let onAlertConfirmCallback = null;
+        // --- MODAL KONTROLÜ ---
+        let onConfirm = null;
 
-        function showCustomAlert(title, message, confirmCallback = null) {
-            document.getElementById('custom-alert-title').innerText = title;
+        function showCustomAlert(title, message, callback = null) {
+            document.getElementById('custom-alert-title').innerText = title.toUpperCase();
             document.getElementById('custom-alert-message').innerText = message;
             document.getElementById('custom-alert-overlay').classList.remove('hidden');
-            onAlertConfirmCallback = confirmCallback; // Callback'i sakla
+            onConfirm = callback;
         }
 
-        function hideCustomAlert() {
+        document.getElementById('custom-alert-confirm-btn').onclick = () => {
             document.getElementById('custom-alert-overlay').classList.add('hidden');
-            if (onAlertConfirmCallback) {
-                onAlertConfirmCallback(); // Callback'i çalıştır
-                onAlertConfirmCallback = null; // Callback'i temizle
-            }
-        }
+            if (onConfirm) { onConfirm(); onConfirm = null; }
+        };
 
-        // --- Sayfa yüklendiğinde "Tamam" butonuna olay dinleyici ekle ---
-        document.addEventListener('DOMContentLoaded', () => {
-            document.getElementById('custom-alert-confirm-btn').onclick = hideCustomAlert;
-        });
-        // --- Özel Uyarı Modalı Fonksiyonları Sonu ---
-
-
+        // --- OYUN MANTIĞI ---
         function joinGame() {
-            myName = document.getElementById('username').value;
+            myName = document.getElementById('username').value.trim();
             if(!myName) {
-                showCustomAlert("Hata!", "İsminizi boş bırakamazsınız."); // alert yerine
+                showCustomAlert("Hata", "Lütfen bir isim girin!");
                 return;
             }
             const newPlayerRef = db.ref('players').push();
             myId = newPlayerRef.key;
             newPlayerRef.set({ name: myName, ready: false, symbol: "", status: "alive" });
             newPlayerRef.onDisconnect().remove();
+
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
             listenGame();
-            listenInteractions(); // Bildirimleri dinlemeye başla
+            listenInteractions();
         }
 
         function listenGame() {
-            db.ref('gameState').on('value', (snap) => {
+            db.ref('gameState').on('value', snap => {
                 isGlobalStarted = snap.val() || false;
                 const statusEl = document.getElementById('status');
                 if (isGlobalStarted) {
-                    statusEl.innerText = "OYUN BAŞLADI!";
+                    statusEl.innerText = "● OYUN BAŞLADI!";
                     document.getElementById('ready-btn').classList.add('hidden');
                     document.getElementById('guess-zone').classList.remove('hidden');
                     checkAndAssignMySymbol();
                 } else {
                     statusEl.innerText = "Lobi: Hazırlanıyor...";
-                    document.getElementById('guess-zone').classList.add('hidden');
-                    document.getElementById('ready-btn').classList.remove('hidden');
                 }
             });
 
-            db.ref('players').on('value', (snapshot) => {
-                const players = snapshot.val() || {};
+            db.ref('players').on('value', snap => {
+                const players = snap.val() || {};
                 const listDiv = document.getElementById('player-list');
                 listDiv.innerHTML = '';
-                let playerIds = Object.keys(players);
+                
+                let pIds = Object.keys(players);
                 let readyCount = 0;
                 for(let id in players) if(players[id].ready) readyCount++;
 
@@ -217,6 +183,7 @@
                     const p = players[id];
                     const div = document.createElement('div');
                     div.className = `player-node ${p.ready ? 'ready' : ''}`;
+                    
                     if(isGlobalStarted) {
                         div.innerHTML = `<span>${id !== myId ? (p.symbol || "⌛") : "?"}</span><small>${p.name}</small>`;
                         if(id !== myId) div.onclick = () => askSymbol(id, p.name);
@@ -226,26 +193,21 @@
                     listDiv.appendChild(div);
                 }
 
-                if (!isGlobalStarted && playerIds.length >= 2 && readyCount === playerIds.length && playerIds[0] === myId) {
+                if (!isGlobalStarted && pIds.length >= 2 && readyCount === pIds.length && pIds[0] === myId) {
                     db.ref('gameState').set(true);
                 }
             });
         }
 
-        // 1. SORU SORMA: Rakibe tıklandığında çalışır
         function askSymbol(targetId, targetName) {
-            updateLog(`${targetName} kişisine ensesindeki sembol soruluyor...`);
+            updateLog(`${targetName} kişisine soruluyor...`);
             db.ref('interactions/' + targetId).set({
-                fromId: myId,
-                fromName: myName,
-                type: "question",
-                timestamp: Date.now()
+                fromId: myId, fromName: myName, type: "question", timestamp: Date.now()
             });
         }
 
-        // 2. ETKİLEŞİMLERİ DİNLEME: Bana soru soruldu mu?
         function listenInteractions() {
-            db.ref('interactions/' + myId).on('value', (snap) => {
+            db.ref('interactions/' + myId).on('value', snap => {
                 const data = snap.val();
                 if(!data) {
                     document.getElementById('interaction-panel').classList.add('hidden');
@@ -253,32 +215,23 @@
                 }
 
                 if(data.type === "question") {
-                    document.getElementById('question-text').innerText = `${data.fromName} sana ensende ne olduğunu soruyor!`;
+                    document.getElementById('question-text').innerText = `${data.fromName} ensendeki sembolü soruyor!`;
                     document.getElementById('interaction-panel').classList.remove('hidden');
                     currentRequestId = data.fromId;
                 } else if(data.type === "answer") {
-                    // Sorduğum sorunun cevabı geldi
-                    showCustomAlert("Cevap Geldi!", `${data.fromName} diyor ki: "Ensendeki sembol ${data.choice}"`); // alert yerine
-                    updateLog(`${data.fromName} cevapladı: ${data.choice}`);
-                    db.ref('interactions/' + myId).remove(); // Mesajı temizle
+                    showCustomAlert("CEVAP GELDİ", `${data.fromName} fısıldadı: "Ensendeki sembol ${data.choice}"`);
+                    updateLog(`${data.fromName}: ${data.choice}`);
+                    db.ref('interactions/' + myId).remove();
                 }
             });
         }
 
-        // 3. CEVAP VERME: Panelden bir sembol seçildiğinde
         function answerQuestion(choice) {
             if(!currentRequestId) return;
-            // Cevabı soruyu soran kişiye gönder
             db.ref('interactions/' + currentRequestId).set({
-                fromId: myId,
-                fromName: myName,
-                type: "answer",
-                choice: choice,
-                timestamp: Date.now()
+                fromId: myId, fromName: myName, type: "answer", choice: choice, timestamp: Date.now()
             });
-            // Kendi panelimi kapat
             db.ref('interactions/' + myId).remove();
-            document.getElementById('interaction-panel').classList.add('hidden');
         }
 
         function checkAndAssignMySymbol() {
@@ -292,23 +245,24 @@
 
         function setReady() {
             db.ref('players/' + myId).update({ ready: true });
-            document.getElementById('ready-btn').disabled = true;
-            document.getElementById('ready-btn').innerText = "Bekleniyor...";
+            const btn = document.getElementById('ready-btn');
+            btn.disabled = true;
+            btn.innerText = "BEKLENİYOR...";
         }
 
         function makeGuess(guess) {
             db.ref('players/' + myId + '/symbol').once('value', snap => {
                 const realSymbol = snap.val();
                 if(realSymbol === guess) {
-                    showCustomAlert("TEBRİKLER!", "Doğru tahmin ettin!", () => { // alert yerine, callback ile devam et
+                    showCustomAlert("TEBRİKLER", "Doğru bildin ve hayatta kaldın!", () => {
                         db.ref('gameState').set(false);
-                        db.ref('interactions').remove(); // Tüm konuşmaları temizle
+                        db.ref('interactions').remove();
                         db.ref('players').once('value', s => {
                             for(let id in s.val()) db.ref('players/' + id).update({ ready: false, symbol: "" });
                         });
                     });
                 } else {
-                    showCustomAlert("Oyun Bitti!", `ELENDİN! Ensendeki sembol: ${realSymbol}`, () => { // alert yerine, callback ile devam et
+                    showCustomAlert("ELENDİN", `Yanlış tahmin! Ensendeki: ${realSymbol}`, () => {
                         db.ref('players/' + myId).remove();
                         location.reload();
                     });
@@ -319,7 +273,7 @@
         function updateLog(msg) {
             const log = document.getElementById('game-log');
             if(log) {
-                log.innerHTML += `<p>> ${msg}</p>`;
+                log.innerHTML += `<div>> ${msg}</div>`;
                 log.scrollTop = log.scrollHeight;
             }
         }
