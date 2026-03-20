@@ -70,6 +70,7 @@
         
         let myId = "";
         let myName = "";
+        let isGlobalStarted = false; // Oyunun başlayıp başlamadığını anlık tutmak için
         const allSymbols = ['♠', '♥', '♦', '♣'];
 
         function joinGame() {
@@ -94,58 +95,69 @@
         }
 
         function listenGame() {
-            // 1. Oyun Durumunu Dinle (Başladı mı?)
+            // 1. Oyun Durumunu Dinle (Hızlı erişim için değişkene atıyoruz)
             db.ref('gameState').on('value', (snap) => {
-                const isStarted = snap.val();
-                if (isStarted) {
-                    document.getElementById('status').innerText = "OYUN BAŞLADI!";
-                    document.getElementById('ready-btn').classList.add('hidden');
-                    document.getElementById('guess-zone').classList.remove('hidden');
+                isGlobalStarted = snap.val() || false;
+                const statusEl = document.getElementById('status');
+                const readyBtn = document.getElementById('ready-btn');
+                const guessZone = document.getElementById('guess-zone');
+
+                if (isGlobalStarted) {
+                    statusEl.innerText = "OYUN BAŞLADI!";
+                    readyBtn.classList.add('hidden');
+                    guessZone.classList.remove('hidden');
                 } else {
-                    document.getElementById('status').innerText = "Lobi: Hazırlanıyor...";
-                    document.getElementById('guess-zone').classList.add('hidden');
+                    statusEl.innerText = "Lobi: Hazırlanıyor...";
+                    guessZone.classList.add('hidden');
+                    readyBtn.classList.remove('hidden');
                 }
             });
 
             // 2. Oyuncuları Dinle
             db.ref('players').on('value', (snapshot) => {
-                const players = snapshot.val();
+                const players = snapshot.val() || {};
                 const listDiv = document.getElementById('player-list');
                 listDiv.innerHTML = '';
                 
                 let totalCount = 0;
                 let readyCount = 0;
 
-                // Önce durum tespiti
+                // Önce sayısal verileri hesapla
                 for(let id in players) {
                     totalCount++;
                     if(players[id].ready) readyCount++;
                 }
 
-                // Döngü ile çizim
+                // Döngü ile çizim - Artık içerde veritabanı sorgusu yok
                 for(let id in players) {
                     const p = players[id];
                     const div = document.createElement('div');
                     div.className = `player-node ${p.ready ? 'ready' : ''}`;
                     
-                    // KRİTİK: Firebase'den gameState kontrolü yapıyoruz
-                    db.ref('gameState').once('value', (gSnap) => {
-                        const isGlobalStarted = gSnap.val();
-                        if(isGlobalStarted && id !== myId) {
-                            div.innerHTML = `<span>${p.symbol || '?'}</span><small>${p.name}</small>`;
+                    // Eğer oyun başladıysa ve başkasıysa sembolü göster
+                    if(isGlobalStarted && id !== myId) {
+                        // Sembol atanırken boş kalırsa soru işareti değil, '...' göstererek beklediğini belli eder
+                        const displaySymbol = p.symbol ? p.symbol : "..."; 
+                        div.innerHTML = `<span>${displaySymbol}</span><small>${p.name}</small>`;
+                        
+                        // Sembol varsa tıklanabilir yap
+                        if(p.symbol) {
                             div.onclick = () => whisperAction(p.name, p.symbol);
-                        } else {
-                            div.innerHTML = `<span>${p.name[0].toUpperCase()}</span><small>${p.name}</small>`;
                         }
-                    });
+                    } else {
+                        // Lobi aşaması veya oyuncunun kendisi
+                        div.innerHTML = `<span>${p.name[0].toUpperCase()}</span><small>${p.name}</small>`;
+                    }
 
                     listDiv.appendChild(div);
                 }
 
-                // Eğer lobi aşamasındaysak ve herkes hazırsa global başlat
-                if (totalCount >= 2 && readyCount === totalCount) {
+                // Otomatik başlatma ve sembol atama mantığı
+                if (!isGlobalStarted && totalCount >= 2 && readyCount === totalCount) {
                     db.ref('gameState').set(true); 
                     assignMySymbol();
+                } else if (!isGlobalStarted) {
+                    document.getElementById('status').innerText = `Lobi: ${readyCount}/${totalCount} Hazır`;
                 }
             });
         }
@@ -160,7 +172,7 @@
         }
 
         function whisperAction(targetName, targetSymbol) {
-            const isLying = Math.random() < 0.3;
+            const isLying = Math.random() < 0.3; // %30 yalan payı
             db.ref('players/' + myId).once('value').then(snap => {
                 const myRealSymbol = snap.val().symbol;
                 let spoken;
@@ -182,13 +194,13 @@
 
         function makeGuess(guess) {
             db.ref('players/' + myId).once('value').then(snap => {
-                if(snap.val().symbol === guess) {
+                const realSymbol = snap.val().symbol;
+                if(realSymbol === guess) {
                     alert("TEBRİKLER! Bildin.");
                     db.ref('gameState').set(false); // Oyunu sıfırla
-                    db.ref('players/' + myId).update({ ready: false, symbol: "" });
                     location.reload();
                 } else {
-                    alert(`ELENDİN! Ensendeki: ${snap.val().symbol}`);
+                    alert(`ELENDİN! Ensendeki: ${realSymbol}`);
                     db.ref('players/' + myId).remove();
                     location.reload();
                 }
@@ -197,8 +209,10 @@
 
         function updateLog(msg) {
             const log = document.getElementById('game-log');
-            log.innerHTML += `<p>> ${msg}</p>`;
-            log.scrollTop = log.scrollHeight;
+            if(log) {
+                log.innerHTML += `<p>> ${msg}</p>`;
+                log.scrollTop = log.scrollHeight;
+            }
         }
     </script>
 </body>
