@@ -16,8 +16,10 @@
         button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; margin: 5px; }
         button:disabled { background: #444; cursor: not-allowed; }
         .player-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 15px 0; }
-        .player-node { border: 2px solid red; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; }
+        .player-node { border: 2px solid red; border-radius: 50%; width: 60px; height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; background: #1a1a1a; }
         .player-node.ready { border-color: #00ff00; box-shadow: 0 0 10px #00ff00; }
+        .player-node span { font-size: 1.5rem; font-weight: bold; }
+        .player-node small { font-size: 0.6rem; margin-top: 2px; }
         .symbols-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
     </style>
 </head>
@@ -69,6 +71,7 @@
         let myId = "";
         let myName = "";
         let gameStarted = false;
+        const allSymbols = ['♠', '♥', '♦', '♣'];
 
         function joinGame() {
             myName = document.getElementById('username').value;
@@ -107,56 +110,75 @@
 
                     const div = document.createElement('div');
                     div.className = `player-node ${p.ready ? 'ready' : ''}`;
-                    div.innerText = p.name[0].toUpperCase();
-                    div.title = p.name + (p.ready ? " (Hazır)" : " (Hazırlanıyor)");
                     
-                    // Başkasına tıklayınca fısıldama (Sadece oyun başladıysa)
-                    if(id !== myId && p.symbol && gameStarted) {
-                        div.onclick = () => alert(`${p.name} kişisinin ensesinde ${p.symbol} var!`);
+                    // DÜZENLEME: Oyun başladıysa ve başkasıysa sembolü göster
+                    if(gameStarted && id !== myId && p.symbol) {
+                        div.innerHTML = `<span>${p.symbol}</span><small>${p.name}</small>`;
+                        div.onclick = () => whisperAction(p.name, p.symbol);
+                    } else {
+                        div.innerHTML = `<span>${p.name[0].toUpperCase()}</span><small>${p.name}</small>`;
                     }
+
                     listDiv.appendChild(div);
                 }
 
-                // DURUM GÜNCELLEME
-                if (!gameStarted) {
+                if (!gameStarted && totalCount >= 2 && readyCount === totalCount) {
+                    startGame();
+                } else if (!gameStarted) {
                     document.getElementById('status').innerText = `Lobi: ${readyCount}/${totalCount} Oyuncu Hazır`;
-                    
-                    // KRİTİK: Eğer en az 2 kişi varsa ve herkes hazırsa OYUNU BAŞLAT
-                    if (totalCount >= 2 && readyCount === totalCount) {
-                        startGame();
-                    }
                 }
             });
+        }
+
+        function whisperAction(targetName, targetSymbol) {
+            // Blöf mekanizması: %70 doğru, %30 yalan
+            const isLying = Math.random() < 0.3;
+            let spokenSymbol;
+
+            if (isLying) {
+                // Yalan söylüyorsa gerçek sembol dışındaki sembollerden birini seç
+                const otherSymbols = allSymbols.filter(s => s !== targetSymbol);
+                spokenSymbol = otherSymbols[Math.floor(Math.random() * otherSymbols.length)];
+            } else {
+                // Doğruyu söylüyorsa (Kendi gördüğü, senin ensendeki sembolü söyler)
+                // Mantık: Diğer oyuncu sana tıkladığında, sistem senin gerçek sembolünü ona söyletir.
+                db.ref('players/' + myId).once('value').then(snap => {
+                    const myRealSymbol = snap.val().symbol;
+                    alert(`${targetName} sana fısıldıyor: "Senin ensende ${myRealSymbol} var!"`);
+                    updateLog(`${targetName} fısıldadı: "Ensendeki ${myRealSymbol}"`);
+                });
+                return;
+            }
+
+            alert(`${targetName} sana fısıldıyor: "Senin ensende ${spokenSymbol} var!"`);
+            updateLog(`${targetName} fısıldadı: "Ensendeki ${spokenSymbol}"`);
         }
 
         function setReady() {
             db.ref('players/' + myId).update({ ready: true });
             document.getElementById('ready-btn').disabled = true;
             document.getElementById('ready-btn').innerText = "Bekleniyor...";
-            updateLog("Hazır olduğun bildirildi. Diğerleri bekleniyor...");
         }
 
         function startGame() {
             gameStarted = true;
-            const symbols = ['♠', '♥', '♦', '♣'];
-            const randomSymbol = symbols[Math.floor(Math.random() * symbols.length)];
+            const randomSymbol = allSymbols[Math.floor(Math.random() * allSymbols.length)];
             
-            // Kendi sembolünü ata (Sadece sende görünecek şekilde DB'ye yaz)
             db.ref('players/' + myId).update({ symbol: randomSymbol });
 
             document.getElementById('status').innerText = "OYUN BAŞLADI!";
             document.getElementById('ready-btn').classList.add('hidden');
             document.getElementById('guess-zone').classList.remove('hidden');
-            updateLog("Herkes hazır! Diğer oyuncuların ensesindekileri öğrenmek için onlara tıkla.");
+            updateLog("Oyun başladı! Diğerlerinin ensesindeki işaretler açıldı.");
         }
 
         function makeGuess(guess) {
             db.ref('players/' + myId).once('value').then(snap => {
                 if(snap.val().symbol === guess) {
-                    alert("DOĞRU! Hayatta kaldın.");
-                    updateLog("Doğru tahmin! Şimdilik güvendesin.");
+                    alert("DOĞRU! Yaşamaya hak kazandın.");
+                    location.reload(); 
                 } else {
-                    alert("YANLIŞ! Elendin.");
+                    alert(`YANLIŞ! Ensendeki sembol ${snap.val().symbol} idi. Elendin!`);
                     db.ref('players/' + myId).remove();
                     location.reload();
                 }
