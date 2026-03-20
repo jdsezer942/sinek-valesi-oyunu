@@ -16,10 +16,10 @@
         button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; margin: 5px; }
         button:disabled { background: #444; cursor: not-allowed; }
         .player-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 15px 0; }
-        .player-node { border: 2px solid red; border-radius: 50%; width: 70px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; background: #1a1a1a; }
+        .player-node { border: 2px solid red; border-radius: 50%; width: 70px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; background: #1a1a1a; position: relative; }
         .player-node.ready { border-color: #00ff00; box-shadow: 0 0 10px #00ff00; }
         .player-node span { font-size: 1.8rem; font-weight: bold; }
-        .player-node small { font-size: 0.7rem; margin-top: 2px; color: #aaa; }
+        .player-node small { font-size: 0.7rem; margin-top: 2px; color: #aaa; overflow: hidden; text-overflow: ellipsis; width: 60px; }
         .symbols-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
     </style>
 </head>
@@ -106,7 +106,10 @@
                     statusEl.innerText = "OYUN BAŞLADI!";
                     readyBtn.classList.add('hidden');
                     guessZone.classList.remove('hidden');
+                    // Oyun başladığında sembolüm yoksa hemen ata (Self-Healing)
+                    checkAndAssignMySymbol();
                 } else {
+                    statusEl.innerText = "Lobi: Hazırlanıyor...";
                     guessZone.classList.add('hidden');
                     readyBtn.classList.remove('hidden');
                 }
@@ -126,46 +129,54 @@
                     if(players[id].ready) readyCount++;
                 }
 
-                // Lider Belirleme (Odadaki ilk kişi host olur)
-                const isHost = playerIds[0] === myId;
-
                 for(let id in players) {
                     const p = players[id];
                     const div = document.createElement('div');
                     div.className = `player-node ${p.ready ? 'ready' : ''}`;
                     
-                    if(isGlobalStarted && id !== myId) {
-                        // Sembol henüz gelmediyse kum saati göster
-                        const displaySymbol = p.symbol ? p.symbol : "⌛"; 
-                        div.innerHTML = `<span>${displaySymbol}</span><small>${p.name}</small>`;
-                        
-                        if(p.symbol) {
-                            div.onclick = () => whisperAction(p.name, p.symbol);
+                    if(isGlobalStarted) {
+                        if(id !== myId) {
+                            // Başka bir oyuncu için sembolü göster
+                            const displaySymbol = p.symbol ? p.symbol : "⌛"; 
+                            div.innerHTML = `<span>${displaySymbol}</span><small>${p.name}</small>`;
+                            if(p.symbol) {
+                                div.onclick = () => whisperAction(p.name, p.symbol);
+                            }
+                        } else {
+                            // Kendim için soru işareti göster (Kendi sembolümü görmemem lazım)
+                            div.innerHTML = `<span>?</span><small>${p.name}</small>`;
                         }
                     } else {
+                        // Lobi hali
                         div.innerHTML = `<span>${p.name[0].toUpperCase()}</span><small>${p.name}</small>`;
                     }
                     listDiv.appendChild(div);
                 }
 
-                // Başlatma Koşulu: Sadece HOST başlatır ve sembolleri atar
-                if (!isGlobalStarted && totalCount >= 2 && readyCount === totalCount && isHost) {
+                // Otomatik Başlatma (Sadece ilk oyuncu/lider tetikler)
+                if (!isGlobalStarted && totalCount >= 2 && readyCount === totalCount && playerIds[0] === myId) {
                     db.ref('gameState').set(true);
-                    // Tüm oyunculara sembol ata
-                    for(let id in players) {
-                        const randomSymbol = allSymbols[Math.floor(Math.random() * allSymbols.length)];
-                        db.ref('players/' + id).update({ symbol: randomSymbol });
-                    }
-                } else if (!isGlobalStarted) {
-                    document.getElementById('status').innerText = `Lobi: ${readyCount}/${totalCount} Hazır`;
+                }
+            });
+        }
+
+        // Sembol Atama Garantisi
+        function checkAndAssignMySymbol() {
+            db.ref('players/' + myId + '/symbol').once('value', snap => {
+                if(!snap.val()) {
+                    const randomSymbol = allSymbols[Math.floor(Math.random() * allSymbols.length)];
+                    db.ref('players/' + myId).update({ symbol: randomSymbol });
                 }
             });
         }
 
         function whisperAction(targetName, targetSymbol) {
             const isLying = Math.random() < 0.3;
-            db.ref('players/' + myId).once('value').then(snap => {
-                const myRealSymbol = snap.val().symbol;
+            // Kendi sembolümü Firebase'den anlık çekip fısılda
+            db.ref('players/' + myId + '/symbol').once('value', snap => {
+                const myRealSymbol = snap.val();
+                if(!myRealSymbol) return; // Henüz sembol atanmadıysa fısıldama
+
                 let spoken;
                 if(isLying) {
                     spoken = allSymbols.filter(s => s !== myRealSymbol)[Math.floor(Math.random() * 3)];
@@ -180,25 +191,24 @@
         function setReady() {
             db.ref('players/' + myId).update({ ready: true });
             document.getElementById('ready-btn').disabled = true;
-            document.getElementById('ready-btn').innerText = "Bekle...";
+            document.getElementById('ready-btn').innerText = "Bekleniyor...";
         }
 
         function makeGuess(guess) {
-            db.ref('players/' + myId).once('value').then(snap => {
-                const realSymbol = snap.val().symbol;
+            db.ref('players/' + myId + '/symbol').once('value', snap => {
+                const realSymbol = snap.val();
                 if(realSymbol === guess) {
-                    alert("DOĞRU! Yaşamaya hak kazandın.");
-                    db.ref('gameState').set(false); // Oyunu herkes için bitir
-                    // Herkesi sıfırla
+                    alert("TEBRİKLER! Bildin.");
+                    // Oyunu bitir ve lobiye dönmek için temizlik yap
+                    db.ref('gameState').set(false);
                     db.ref('players').once('value', s => {
                         const all = s.val();
                         for(let id in all) {
-                            db.ref('players/'+id).update({ready: false, symbol: ""});
+                            db.ref('players/' + id).update({ ready: false, symbol: "" });
                         }
                     });
-                    setTimeout(() => location.reload(), 500);
                 } else {
-                    alert(`YANLIŞ! Ensendeki: ${realSymbol}. Elendin!`);
+                    alert(`ELENDİN! Ensendeki: ${realSymbol}`);
                     db.ref('players/' + myId).remove();
                     location.reload();
                 }
