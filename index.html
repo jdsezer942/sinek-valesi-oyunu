@@ -1,3 +1,6 @@
+Aşağıda, tarayıcının varsayılan uyarı kutucukları yerine özel bir model penceresi kullanan güncellenmiş kod bulunmaktadır. Bu değişiklik, oyun deneyimini daha bütünleşik hale getirecektir.
+
+```html
 <!DOCTYPE html>
 <html lang="tr">
 <head>
@@ -13,7 +16,7 @@
         .log { height: 120px; overflow-y: auto; background: #000; padding: 10px; text-align: left; font-size: 0.8rem; border: 1px dashed #555; margin: 10px 0; }
         .hidden { display: none; }
         input { padding: 10px; background: #222; border: 1px solid #444; color: white; margin-bottom: 10px; width: 80%; }
-        button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; margin: 5px; }
+        button { padding: 10px 20px; background: #8b0000; color: white; border: none; cursor: pointer; font-weight: bold; margin: 5px; border-radius: 5px; } /* Added border-radius */
         button:disabled { background: #444; cursor: not-allowed; }
         .player-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 15px 0; }
         .player-node { border: 2px solid red; border-radius: 50%; width: 70px; height: 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: 0.3s; background: #1a1a1a; position: relative; }
@@ -22,8 +25,61 @@
         .player-node small { font-size: 0.7rem; margin-top: 2px; color: #aaa; overflow: hidden; text-overflow: ellipsis; width: 60px; }
         .symbols-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 15px; }
         
-        /* Yeni: Bildirim Paneli */
+        /* Bildirim Paneli */
         #interaction-panel { background: #1a1a1a; border: 2px solid cyan; padding: 15px; border-radius: 10px; margin-top: 15px; position: fixed; top: 20px; width: 300px; z-index: 100; box-shadow: 0 0 20px cyan; }
+
+        /* Yeni: Özel Uyarı Modalı */
+        #custom-alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000; /* Ensures it's above everything else */
+        }
+        #custom-alert-box {
+            background: #1a1a1a;
+            border: 2px solid var(--card-red);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+            animation: fadeIn 0.3s ease-out; /* Simple fade-in animation */
+        }
+        #custom-alert-box h3 {
+            color: var(--card-red);
+            margin-top: 0;
+            font-size: 1.5rem;
+        }
+        #custom-alert-box p {
+            margin-bottom: 20px;
+            font-size: 1rem;
+            line-height: 1.4;
+        }
+        #custom-alert-confirm-btn {
+            background: #8b0000;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 10px 25px;
+            border-radius: 5px;
+            transition: background 0.2s ease;
+        }
+        #custom-alert-confirm-btn:hover {
+            background: #b30000;
+        }
+
+        /* Fade-in animation for modal */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
     </style>
 </head>
 <body>
@@ -66,6 +122,15 @@
         </div>
     </div>
 
+    <!-- Özel Uyarı Modalı -->
+    <div id="custom-alert-overlay" class="hidden">
+        <div id="custom-alert-box">
+            <h3 id="custom-alert-title"></h3>
+            <p id="custom-alert-message"></p>
+            <button id="custom-alert-confirm-btn">Tamam</button>
+        </div>
+    </div>
+
     <script>
         const firebaseConfig = {
             apiKey: "AIzaSyDFfKM09beGbtknlKBlwTYr6V21S_rwZ7c",
@@ -86,9 +151,37 @@
         let currentRequestId = ""; 
         const allSymbols = ['♠', '♥', '♦', '♣'];
 
+        // --- Özel Uyarı Modalı Fonksiyonları ---
+        let onAlertConfirmCallback = null;
+
+        function showCustomAlert(title, message, confirmCallback = null) {
+            document.getElementById('custom-alert-title').innerText = title;
+            document.getElementById('custom-alert-message').innerText = message;
+            document.getElementById('custom-alert-overlay').classList.remove('hidden');
+            onAlertConfirmCallback = confirmCallback; // Callback'i sakla
+        }
+
+        function hideCustomAlert() {
+            document.getElementById('custom-alert-overlay').classList.add('hidden');
+            if (onAlertConfirmCallback) {
+                onAlertConfirmCallback(); // Callback'i çalıştır
+                onAlertConfirmCallback = null; // Callback'i temizle
+            }
+        }
+
+        // --- Sayfa yüklendiğinde "Tamam" butonuna olay dinleyici ekle ---
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('custom-alert-confirm-btn').onclick = hideCustomAlert;
+        });
+        // --- Özel Uyarı Modalı Fonksiyonları Sonu ---
+
+
         function joinGame() {
             myName = document.getElementById('username').value;
-            if(!myName) return alert("İsim yaz!");
+            if(!myName) {
+                showCustomAlert("Hata!", "İsminizi boş bırakamazsınız."); // alert yerine
+                return;
+            }
             const newPlayerRef = db.ref('players').push();
             myId = newPlayerRef.key;
             newPlayerRef.set({ name: myName, ready: false, symbol: "", status: "alive" });
@@ -144,7 +237,7 @@
 
         // 1. SORU SORMA: Rakibe tıklandığında çalışır
         function askSymbol(targetId, targetName) {
-            updateLog(`${targetName} kişisine soruluyor...`);
+            updateLog(`${targetName} kişisine ensesindeki sembol soruluyor...`);
             db.ref('interactions/' + targetId).set({
                 fromId: myId,
                 fromName: myName,
@@ -168,7 +261,7 @@
                     currentRequestId = data.fromId;
                 } else if(data.type === "answer") {
                     // Sorduğum sorunun cevabı geldi
-                    alert(`${data.fromName} diyor ki: "Ensendeki sembol ${data.choice}"`);
+                    showCustomAlert("Cevap Geldi!", `${data.fromName} diyor ki: "Ensendeki sembol ${data.choice}"`); // alert yerine
                     updateLog(`${data.fromName} cevapladı: ${data.choice}`);
                     db.ref('interactions/' + myId).remove(); // Mesajı temizle
                 }
@@ -210,16 +303,18 @@
             db.ref('players/' + myId + '/symbol').once('value', snap => {
                 const realSymbol = snap.val();
                 if(realSymbol === guess) {
-                    alert("TEBRİKLER! Bildin.");
-                    db.ref('gameState').set(false);
-                    db.ref('interactions').remove(); // Tüm konuşmaları temizle
-                    db.ref('players').once('value', s => {
-                        for(let id in s.val()) db.ref('players/' + id).update({ ready: false, symbol: "" });
+                    showCustomAlert("TEBRİKLER!", "Doğru tahmin ettin!", () => { // alert yerine, callback ile devam et
+                        db.ref('gameState').set(false);
+                        db.ref('interactions').remove(); // Tüm konuşmaları temizle
+                        db.ref('players').once('value', s => {
+                            for(let id in s.val()) db.ref('players/' + id).update({ ready: false, symbol: "" });
+                        });
                     });
                 } else {
-                    alert(`ELENDİN! Ensendeki: ${realSymbol}`);
-                    db.ref('players/' + myId).remove();
-                    location.reload();
+                    showCustomAlert("Oyun Bitti!", `ELENDİN! Ensendeki sembol: ${realSymbol}`, () => { // alert yerine, callback ile devam et
+                        db.ref('players/' + myId).remove();
+                        location.reload();
+                    });
                 }
             });
         }
@@ -234,3 +329,4 @@
     </script>
 </body>
 </html>
+```
